@@ -1,0 +1,15 @@
+flask
+flask_restx
+FlagEmbedding
+langchain
+pymupdf
+unstructured
+unstructured[pdf]
+mongoengine
+shortid
+vines-worker-sdk==0.0.19
+jq
+elasticsearch==8.12.0
+tos
+oss2
+pyyaml

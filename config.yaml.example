@@ -1,0 +1,23 @@
+server:
+  port: 8899
+
+mongo:
+  url:
+
+redis:
+  url:
+
+elasticsearch:
+  url:
+  username:
+  password:
+  knnNumCandidates: 100
+  batchSize: 100
+
+s3:
+  accessKeyId:
+  secretAccessKey:
+  endpoint:
+  region:
+  bucket:
+
