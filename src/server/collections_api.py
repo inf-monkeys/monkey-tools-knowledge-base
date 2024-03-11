@@ -31,7 +31,7 @@ class CollectionList(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @api.vendor({
-        "x-monkey-tool-hidden": True,
+        "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('list_collections')
     @collection_ns.marshal_list_with(collection_model)
@@ -53,6 +53,9 @@ class CollectionList(Resource):
             item['fileCount'] = file_count
         return data
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('create_collection')
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model, code=201)
@@ -107,6 +110,9 @@ class CollectionList(Resource):
 class CollectionDetail(Resource):
     '''Show a single todo item and lets you delete them'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('get_collection')
     @collection_ns.marshal_with(collection_model)
     def get(self, name):
@@ -119,6 +125,9 @@ class CollectionDetail(Resource):
         data = table.find_by_name(team_id, name)
         return dumps(data)
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('delete_collection')
     @collection_ns.response(204, 'Collection deleted')
     def delete(self, name):
@@ -135,6 +144,9 @@ class CollectionDetail(Resource):
             "success": True
         }
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model)
     def put(self, name):
@@ -170,6 +182,9 @@ class CollectionDetail(Resource):
 class CollectionData(Resource):
     '''Show a single todo item and lets you delete them'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('delete_collection_data')
     def delete(self, name):
         '''Delete data in a collection'''
@@ -195,6 +210,9 @@ class CollectionData(Resource):
 class CollectionAuthorization(Resource):
     '''Show a single todo item and lets you delete them'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('authorize_collection')
     def put(self, name):
         '''Authorize collection to other team or user'''
@@ -222,6 +240,9 @@ class CollectionAuthorization(Resource):
 class CollectionCopy(Resource):
     '''Show a single todo item and lets you delete them'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('copy_collection')
     def post(self, name):
         """Copy a collection"""
@@ -270,7 +291,7 @@ class TaskList(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @api.vendor({
-        "x-monkey-tool-hidden": True,
+        "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('list_tasks')
     @collection_ns.marshal_list_with(collection_model)
@@ -288,7 +309,7 @@ class TaskList(Resource):
         return dumps(data)
 
     @api.vendor({
-        "x-monkey-tool-hidden": True,
+        "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('create_task')
     @collection_ns.marshal_list_with(collection_model)
@@ -352,6 +373,9 @@ class TaskList(Resource):
 class TaskDetail(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('get_task_detail')
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model, code=201)
@@ -376,6 +400,9 @@ class TaskDetail(Resource):
 class CollectionVectors(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('create_vector')
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model, code=201)
@@ -430,6 +457,9 @@ class CollectionVectors(Resource):
 class CollectionVectorDetail(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('delete_vector')
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model, code=201)
@@ -477,6 +507,9 @@ class CollectionVectorDetail(Resource):
 class CollectionVectorBatch(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
+    @api.vendor({
+        "x-monkey-tool-ignore": True,
+    })
     @collection_ns.doc('upsert_vectors')
     @collection_ns.expect(collection_model)
     @collection_ns.marshal_with(collection_model, code=201)

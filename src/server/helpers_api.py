@@ -15,7 +15,7 @@ class EmbeddingModels(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @api.vendor({
-        "x-monkey-tool-hidden": True,
+        "x-monkey-tool-ignore": True,
     })
     @helpers_ns.doc('get_embedding_models')
     def get(self):
@@ -28,7 +28,7 @@ class OssConnection(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @api.vendor({
-        "x-monkey-tool-hidden": True,
+        "x-monkey-tool-ignore": True,
     })
     @helpers_ns.doc('test_oss_connections')
     def post(self):
@@ -76,9 +76,6 @@ class OssConnection(Resource):
 class Reranker(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
-    @api.vendor({
-        "x-monkey-tool-hidden": True,
-    })
     @helpers_ns.doc('reranker')
     @helpers_ns.vendor({
         "x-monkey-tool-name": "reranker",
@@ -161,9 +158,6 @@ class Reranker(Resource):
 class TextToEmbedding(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
-    @api.vendor({
-        "x-monkey-tool-hidden": True,
-    })
     @helpers_ns.doc('text_to_embedding')
     @helpers_ns.vendor({
         "x-monkey-tool-name": "text_to_embedding",
