@@ -1,17 +1,13 @@
-import os
 from vines_worker_sdk.oss import OSSClient
 
-S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID")
-S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY")
-S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL")
-S3_REGION_NAME = os.environ.get("S3_REGION_NAME")
-S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
-S3_BASE_URL = os.environ.get("S3_BASE_URL")
+from src.config import config_data
+
+s3_config = config_data.get('s3')
 oss_client = OSSClient(
-    aws_access_key_id=S3_ACCESS_KEY_ID,
-    aws_secret_access_key=S3_SECRET_ACCESS_KEY,
-    endpoint_url=S3_ENDPOINT_URL,
-    region_name=S3_REGION_NAME,
-    bucket_name=S3_BUCKET_NAME,
-    base_url=S3_BASE_URL,
+    aws_access_key_id=s3_config.get('accessKeyId'),
+    aws_secret_access_key=s3_config.get('secretAccessKey'),
+    endpoint_url=s3_config.get('endpoint'),
+    region_name=s3_config.get('region'),
+    bucket_name=s3_config.get('bucket'),
+    base_url=s3_config.get('publicUrl'),
 )

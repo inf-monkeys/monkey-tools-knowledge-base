@@ -83,7 +83,7 @@ class Reranker(Resource):
     @helpers_ns.vendor({
         "x-monkey-tool-name": "reranker",
         "x-monkey-tool-categories": ['query'],
-        "x-monkey-tool-displayName": '相关性重排序（reranker）',
+        "x-monkey-tool-display-name": '相关性重排序（reranker）',
         "x-monkey-tool-description": '基于 BAAI/bge-reranker-large 模型对文本进行相似度重排序',
         "x-monkey-tool-icon": 'emoji:💿:#e58c3a',
         "x-monkey-tool-input": [
@@ -168,7 +168,7 @@ class TextToEmbedding(Resource):
     @helpers_ns.vendor({
         "x-monkey-tool-name": "text_to_embedding",
         "x-monkey-tool-categories": ['query', 'text'],
-        "x-monkey-tool-displayName": '文本向量化',
+        "x-monkey-tool-display-name": '文本向量化',
         "x-monkey-tool-description": '文本转向量数据',
         "x-monkey-tool-icon": 'emoji:💿:#e58c3a',
         "x-monkey-tool-input": [

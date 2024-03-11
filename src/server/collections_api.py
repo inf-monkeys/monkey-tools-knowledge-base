@@ -522,7 +522,7 @@ class CollectionFullTextSearch(Resource):
     @collection_ns.vendor({
         "x-monkey-tool-name": "fulltext_search_documents",
         "x-monkey-tool-categories": ['query'],
-        "x-monkey-tool-displayName": '文本全文搜索',
+        "x-monkey-tool-display-name": '文本全文搜索',
         "x-monkey-tool-description": '对文本进行全文关键字搜索，返回最匹配的文档列表',
         "x-monkey-tool-icon": 'emoji:💿:#e58c3a',
         "x-monkey-tool-input": [
@@ -690,7 +690,7 @@ class CollectionVectorSearch(Resource):
     @collection_ns.vendor({
         "x-monkey-tool-name": "search_vector",
         "x-monkey-tool-categories": ['query'],
-        "x-monkey-tool-displayName": '文本向量搜索',
+        "x-monkey-tool-display-name": '文本向量搜索',
         "x-monkey-tool-description": '根据提供的文本对进行相似性搜索',
         "x-monkey-tool-icon": 'emoji:💿:#e58c3a',
         "x-monkey-tool-input": [
