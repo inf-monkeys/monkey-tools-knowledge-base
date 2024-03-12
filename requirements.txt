@@ -7,9 +7,11 @@ unstructured
 unstructured[pdf]
 mongoengine
 shortid
-vines-worker-sdk==0.0.19
+vines-worker-sdk==0.0.21
 jq
 elasticsearch==8.12.0
 tos
 oss2
 pyyaml
+bson
+SQLAlchemy

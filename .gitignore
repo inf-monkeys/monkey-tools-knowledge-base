@@ -218,3 +218,5 @@ swagger/models/
 local_scripts/
 
 config.yaml
+
+*.sqlite

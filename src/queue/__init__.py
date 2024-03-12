@@ -3,7 +3,7 @@ import json
 import traceback
 from src.utils.oss.tos import TOSClient
 from src.utils.oss.aliyunoss import AliyunOSSClient
-from src.database import CollectionTable, FileProcessProgressTable
+from src.database import FileProgressTable, CollectionMetadataFieldTable
 from src.es import ESClient
 from src.config import config_data
 
@@ -12,7 +12,7 @@ redis_config = config_data.get('redis', {})
 REDIS_URL = redis_config.get('url')
 redis = redis.from_url(REDIS_URL)
 
-PROCESS_FILE_QUEUE_NAME = 'queue:vines-worker-text-collections:process-file'
+PROCESS_FILE_QUEUE_NAME = 'queue:monkey-tools-vector:process-file'
 
 
 def submit_task(queue_name, task_data):
@@ -35,10 +35,9 @@ def consume_task(task_data):
     pre_process_rules = task_data['pre_process_rules']
     jqSchema = task_data['jqSchema']
     es_client = ESClient(app_id=app_id, index_name=collection_name)
-    table = CollectionTable(
-        app_id=app_id
-    )
-    progress_table = FileProcessProgressTable(app_id)
+    progress_table = FileProgressTable(app_id)
+    metadata_field_table = CollectionMetadataFieldTable(app_id=app_id)
+
     # 如果是通过 oss 导入，先获取链接，然后再写入消息队列
     if oss_config:
         try:
@@ -64,7 +63,10 @@ def consume_task(task_data):
                     excludeFileRegex
                 )
                 progress_table.update_progress(
-                    task_id=task_id, progress=0.1, message=f"共获取到 {len(all_files)} 个文件"
+                    collection_name=collection_name,
+                    task_id=task_id, progress=0.1,
+                    status="IN_PROGRESS",
+                    message=f"共获取到 {len(all_files)} 个文件"
                 )
                 processed = 0
                 failed = 0
@@ -93,13 +95,15 @@ def consume_task(task_data):
                         progress = "{:.2f}".format(processed / len(all_files))
                         message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
                         progress_table.update_progress(
+                            collection_name=collection_name,
                             task_id=task_id, progress=0.1 + float(progress),
-                            message=message
+                            message=message,
+                            status="IN_PROGRESS"
                         )
 
-                table.add_metadata_fields_if_not_exists(
-                    team_id, collection_name, ['filename', 'filepath']
-                )
+                metadata_field_table.add_if_not_exists(collection_name, key="filename")
+                metadata_field_table.add_if_not_exists(collection_name, key="filepath")
+
             elif oss_type == 'ALIYUNOSS':
                 endpoint, bucket_name, accessKeyId, accessKeySecret, baseFolder, fileExtensions, excludeFileRegex, importFileNameNotContent = oss_config.get(
                     'endpoint'), oss_config.get('bucketName'), oss_config.get(
@@ -118,7 +122,9 @@ def consume_task(task_data):
                     excludeFileRegex
                 )
                 progress_table.update_progress(
-                    task_id=task_id, progress=0.1, message=f"共获取到 {len(all_files)} 个文件"
+                    collection_name=collection_name,
+                    task_id=task_id, progress=0.1, message=f"共获取到 {len(all_files)} 个文件",
+                    status="IN_PROGRESS"
                 )
                 processed = 0
                 failed = 0
@@ -146,18 +152,22 @@ def consume_task(task_data):
                         progress = "{:.2f}".format(processed / len(all_files))
                         message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
                         progress_table.update_progress(
+                            collection_name=collection_name,
                             task_id=task_id, progress=0.1 + float(progress),
-                            message=message
+                            message=message,
+                            status="IN_PROGRESS"
                         )
 
-                table.add_metadata_fields_if_not_exists(
-                    team_id, collection_name, ['filename', 'filepath']
-                )
+                metadata_field_table.add_if_not_exists(collection_name, key="filename")
+                metadata_field_table.add_if_not_exists(collection_name, key="filepath")
+
 
         except Exception as e:
             traceback.print_exc()
-            progress_table.mark_task_failed(
-                task_id=task_id, message=str(e)
+            progress_table.update_progress(
+                collection_name=collection_name,
+                task_id=task_id, message=str(e),
+                status="FAILED"
             )
 
     elif file_url:
@@ -171,13 +181,14 @@ def consume_task(task_data):
                 pre_process_rules=pre_process_rules,
                 jqSchema=jqSchema
             )
-            table.add_metadata_fields_if_not_exists(
-                team_id, collection_name, metadata.keys()
-            )
+            for key in metadata.keys():
+                metadata_field_table.add_if_not_exists(collection_name, key=key)
         except Exception as e:
             traceback.print_exc()
-            progress_table.mark_task_failed(
-                task_id=task_id, message=str(e)
+            progress_table.update_progress(
+                task_id=task_id, message=str(e),
+                collection_name=collection_name,
+                status="FAILED"
             )
 
 

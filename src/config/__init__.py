@@ -8,3 +8,4 @@ def load_config(filename):
 
 
 config_data = load_config('config.yaml')
+database_url = config_data.get('database', {}).get('url', "sqlite:///data.sqlite")

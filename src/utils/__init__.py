@@ -7,6 +7,7 @@ from shortid import ShortId
 import torch
 import re
 import hashlib
+from bson.objectid import ObjectId
 
 sid = ShortId()
 
@@ -155,3 +156,7 @@ def ensure_directory_exists(dir_path):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     return dir_path
+
+
+def generate_mongoid():
+    return str(ObjectId())

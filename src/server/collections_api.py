@@ -1,29 +1,25 @@
 import uuid
 
-from .app import api, app
-from flask import request
-from flask_restx import Api, Resource, fields
-from src.database import CollectionTable, FileRecord, FileProcessProgressTable
-from bson.json_util import dumps
-import json
+from .app import api
+from flask import request, jsonify
+from flask_restx import Resource
+from src.database import create_collections_model_with_prefix, session, \
+    create_collection_authorization_model_with_prefix, FileProgressTable, CollectionMetadataFieldTable
 
 from ..es import ESClient
 from ..queue import submit_task, PROCESS_FILE_QUEUE_NAME
 from ..utils import generate_random_string, get_dimension_by_embedding_model, generate_short_id, \
-    generate_embedding_of_model, generate_md5
+    generate_embedding_of_model, generate_md5, generate_mongoid
 
 collection_ns = api.namespace('collections', description='Collection operations')
-collection_model = api.model('Collection', {
-    'id': fields.String(readonly=True, description='The collection unique identifier'),
-    'createdTimestamp': fields.Integer(readonly=True, description='Create Timestamp'),
-    'updatedTimestamp': fields.Integer(readonly=True, description='Update Timestamp'),
-    'isDeleted': fields.Boolean(readonly=True, description='Is Deleted'),
-    'creatorUserId': fields.String(readonly=True, description='Creator User Id'),
-    'teamId': fields.String(readonly=True, description='Team Id'),
-    'name': fields.String(readonly=True, description='Collection name, which is unique'),
-    'displayName': fields.String(description='Collection display name'),
-    'description': fields.String(description='Collection description'),
-})
+
+
+def get_collection_or_fail(app_id, team_id, name):
+    model = create_collections_model_with_prefix(app_id)
+    collection = session.query(model).filter_by(name=name, team_id=team_id, is_deleted=False).first()
+    if not collection:
+        raise Exception(f"Collection {name} not exists")
+    return collection
 
 
 @collection_ns.route('/')
@@ -34,31 +30,40 @@ class CollectionList(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('list_collections')
-    @collection_ns.marshal_list_with(collection_model)
     def get(self):
         '''List all Collections'''
         team_id = request.team_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        data = table.find_by_team(team_id=team_id)
-        data = json.loads(dumps(data))
-        file_record_table = FileRecord(app_id=app_id)
-        for item in data:
-            es_client = ESClient(app_id=app_id, index_name=item['name'])
-            entity_count = es_client.count_documents()
-            item['entityCount'] = entity_count
-            file_count = file_record_table.get_file_count(team_id, item['name'])
-            item['fileCount'] = file_count
-        return data
+        collection_model = create_collections_model_with_prefix(app_id)
+        collection_authorization_model = create_collection_authorization_model_with_prefix(app_id)
+        team_owned_records = session.query(collection_model).filter_by(team_id=team_id, is_deleted=False).all()
+        team_authorized_records = session.query(collection_authorization_model).filter_by(team_id=team_id).all()
+        # file_record_table = FileRecord(app_id=app_id)
+        data = []
+        for item in team_owned_records:
+            # TODO: add doc count and file count
+            data.append(item.serialize())
+
+        authorized_collection_names = []
+        for item in team_authorized_records:
+            authorized_collection_names.append(item.collection_name)
+        if len(authorized_collection_names) > 0:
+            team_authorized_collections = session.query(collection_model).filter(
+                collection_model.name.in_(authorized_collection_names),
+                collection_model.is_deleted == False
+            )
+            for item in team_authorized_collections:
+                # TODO: add doc count and file count
+                data.append(item.serialize())
+
+        return jsonify({
+            "list": data
+        })
 
     @api.vendor({
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('create_collection')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def post(self):
         '''Create a new Collection'''
         app_id = request.app_id
@@ -66,19 +71,27 @@ class CollectionList(Resource):
         team_id = request.team_id
 
         data = request.json
-        displayName = data.get('displayName')
-        logo = data.get('logo')
+        display_name = data.get('displayName')
+        icon_url = data.get('iconUrl')
         name = generate_random_string()
         embedding_model = data.get('embeddingModel')
-        metadata_fields = data.get('metadataFields', None)
         description = data.get('description', '')
         dimension = get_dimension_by_embedding_model(embedding_model)
-        table = CollectionTable(
-            app_id=app_id
+        model = create_collections_model_with_prefix(app_id)
+
+        collection_entity = model(
+            id=generate_mongoid(),
+            creator_userId=user_id,
+            team_id=team_id,
+            name=name,
+            display_name=display_name,
+            description=description,
+            icon_url=icon_url,
+            embedding_model=embedding_model,
+            dimension=dimension,
         )
-        conflict = table.check_name_conflicts(name)
-        if conflict:
-            raise Exception(f"唯一标志 {name} 已被占用，请换一个")
+        session.add(collection_entity)
+        session.commit()
 
         # 在 es 中创建 template
         es_client = ESClient(
@@ -86,18 +99,6 @@ class CollectionList(Resource):
             index_name=name
         )
         es_client.create_es_index(dimension)
-        table.insert_one(
-            creator_user_id=user_id,
-            team_id=team_id,
-            name=name,
-            display_name=displayName,
-            description=description,
-            embedding_model=embedding_model,
-            dimension=dimension,
-            logo=logo,
-            metadata_fields=metadata_fields
-        )
-
         return {
             "success": True,
             "name": name
@@ -114,16 +115,12 @@ class CollectionDetail(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('get_collection')
-    @collection_ns.marshal_with(collection_model)
     def get(self, name):
         '''Fetch a given collection'''
         team_id = request.team_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        data = table.find_by_name(team_id, name)
-        return dumps(data)
+        collection = get_collection_or_fail(app_id, team_id, name)
+        return jsonify(collection.serialize())
 
     @api.vendor({
         "x-monkey-tool-ignore": True,
@@ -134,10 +131,9 @@ class CollectionDetail(Resource):
         '''Delete a collection given its identifier'''
         team_id = request.team_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        table.delete_by_name(team_id, name)
+        model = create_collections_model_with_prefix(app_id)
+        session.query(model).filter_by(team_id=team_id, name=name).update({"is_deleted": True})
+        session.commit()
         es_client = ESClient(app_id=app_id, index_name=name)
         es_client.delete_index()
         return {
@@ -147,31 +143,23 @@ class CollectionDetail(Resource):
     @api.vendor({
         "x-monkey-tool-ignore": True,
     })
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model)
+    @collection_ns.doc('update_collection')
+    @collection_ns.response(201, 'Collection updated')
     def put(self, name):
         '''Update a collection given its identifier'''
         team_id = request.team_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name(team_id, name)
-        if not collection:
-            raise Exception("数据集不存在")
-
+        model = create_collections_model_with_prefix(app_id)
+        collection = get_collection_or_fail(app_id, team_id, name)
         data = request.json
         description = data.get('description')
         display_name = data.get('displayName')
-        logo = data.get('logo')
-
-        table.update_by_name(
-            team_id,
-            name,
-            description=description,
-            display_name=display_name,
-            logo=logo,
-        )
+        icon_url = data.get('iconUrl')
+        session.query(model).filter_by(name=name, is_deleted=False).update({
+            "description": description or collection.description,
+            "display_name": display_name or collection.display_name,
+            "icon_url": icon_url or collection.icon_url
+        })
         return {
             "success": True
         }
@@ -189,16 +177,13 @@ class CollectionData(Resource):
     def delete(self, name):
         '''Delete data in a collection'''
         app_id = request.app_id
+        team_id = request.team_id
+        collection = get_collection_or_fail(app_id, team_id, name)
         es_client = ESClient(app_id=app_id, index_name=name)
         # 删除索引
         es_client.delete_index()
-        # 重新创建个新的
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name_without_team(name)
         es_client.create_es_index(
-            dimension=collection['dimension']
+            dimension=collection.dimension
         )
         return {
             "success": True
@@ -217,19 +202,20 @@ class CollectionAuthorization(Resource):
     def put(self, name):
         '''Authorize collection to other team or user'''
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name_without_team(name)
-        if not collection:
-            raise Exception("数据集不存在")
-
+        team_id = request.team_id
+        get_collection_or_fail(app_id, team_id, name)
         data = request.json
-        team_id = data.get('team_id')
-        table.authorize_target(
-            name,
-            team_id,
+        team_id = data.get('teamId')
+
+        model = create_collection_authorization_model_with_prefix(app_id)
+        record = model(
+            id=generate_mongoid(),
+            collection_name=name,
+            team_id=team_id
         )
+        session.add(record)
+        session.commit()
+
         return {
             "success": True
         }
@@ -247,38 +233,37 @@ class CollectionCopy(Resource):
     def post(self, name):
         """Copy a collection"""
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name_without_team(name)
-        if not collection:
-            raise Exception("数据集不存在")
-
+        team_id = request.team_id
+        collection = get_collection_or_fail(app_id, team_id, name)
         data = request.json
-        team_id = data.get('team_id')
-        user_id = data.get('user_id')
+        team_id = data.get('teamId')
+        user_id = data.get('userId')
 
-        embedding_model = collection.get('embeddingModel')
-        dimension = collection.get('dimension')
+        embedding_model = collection.embedding_model
+        dimension = collection.dimension
         new_collection_name = generate_short_id()
-        description = collection.get('description')
+        description = collection.description
 
         # 在 es 中创建 template
-        es_client = ESClient(app_id=app_id, index_name=name)
+        es_client = ESClient(app_id=app_id, index_name=new_collection_name)
         es_client.create_es_index(
             dimension
         )
-        table.insert_one(
-            creator_user_id=user_id,
+        model = create_collections_model_with_prefix(app_id)
+        collection_entity = model(
+            id=generate_mongoid(),
+            creator_userId=user_id,
             team_id=team_id,
             name=new_collection_name,
-            display_name=collection.get('displayName'),
+            display_name=collection.display_name,
             description=description,
-            logo=collection.get('logo'),
+            icon_url=collection.icon_url,
             embedding_model=embedding_model,
             dimension=dimension,
-            metadata_fields=collection.get('metadataFields')
+            metadata_fields=collection.metadata_fields,
         )
+        session.add(collection_entity)
+        session.commit()
         return {
             "name": new_collection_name
         }
@@ -294,35 +279,32 @@ class TaskList(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('list_tasks')
-    @collection_ns.marshal_list_with(collection_model)
     def get(self, name):
         '''List all Tasks'''
         team_id = request.team_id
         app_id = request.app_id
-        table = FileProcessProgressTable(
+        table = FileProgressTable(
             app_id=app_id
         )
         data = table.list_tasks(
-            team_id=team_id,
             collection_name=name
         )
-        return dumps(data)
+        return jsonify({
+            "list": data
+        })
 
     @api.vendor({
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('create_task')
-    @collection_ns.marshal_list_with(collection_model)
     def post(self, name):
         '''Create A Task'''
         team_id = request.team_id
         user_id = request.user_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name(team_id, name)
-        embedding_model = collection["embeddingModel"]
+
+        collection = get_collection_or_fail(app_id, team_id, name)
+        embedding_model = collection.embedding_model
 
         data = request.json
         file_url = data.get("fileURL")
@@ -343,10 +325,15 @@ class TaskList(Resource):
         separator = segmentParams.get('segmentSymbol', "\n\n")
         task_id = str(uuid.uuid4())
 
-        progress_table = FileProcessProgressTable(app_id)
-        progress_table.create_task(
-            team_id=team_id, collection_name=name, task_id=task_id
+        progress_table = FileProgressTable(app_id=app_id)
+        progress_table.update_progress(
+            collection_name=name,
+            task_id=task_id,
+            status="PENDING",
+            message="Added to queue",
+            progress=0
         )
+
         submit_task(PROCESS_FILE_QUEUE_NAME, {
             'app_id': app_id,
             'team_id': team_id,
@@ -377,21 +364,15 @@ class TaskDetail(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('get_task_detail')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def get(self, name, task_id):
         '''Get A Task Detail'''
         team_id = request.team_id
         app_id = request.app_id
-        table = FileProcessProgressTable(
+        table = FileProgressTable(
             app_id=app_id
         )
-        data = table.get_task(
-            team_id=team_id,
-            collection_name=name,
-            task_id=task_id
-        )
-        return dumps(data)
+        records = table.get_task_status(task_id=task_id)
+        return jsonify([record.serialize() for record in records])
 
 
 @collection_ns.route('/<string:name>/vectors')
@@ -404,20 +385,17 @@ class CollectionVectors(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('create_vector')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def post(self, name):
         '''Create A Vector'''
         team_id = request.team_id
         user_id = request.user_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name(team_id, name)
-        embedding_model = collection["embeddingModel"]
+        collection = get_collection_or_fail(app_id, team_id, name)
+        embedding_model = collection.embedding_model
         data = request.json
         text = data.get("text")
+        if not text:
+            raise Exception("text in empty")
         metadata = data.get("metadata", {})
         metadata["userId"] = user_id
         es_client = ESClient(app_id=app_id, index_name=name)
@@ -443,9 +421,13 @@ class CollectionVectors(Resource):
                 "metadata": metadata,
                 "embeddings": embedding[0]
             })
-            table.add_metadata_fields_if_not_exists(
-                team_id, name, metadata.keys()
-            )
+
+            for key in metadata.keys():
+                metadata_fields_table = CollectionMetadataFieldTable(app_id=app_id)
+                metadata_fields_table.add_if_not_exists(
+                    collection_name=name,
+                    key=key
+                )
             return {
                 "pk": pk
             }
@@ -461,30 +443,25 @@ class CollectionVectorDetail(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('delete_vector')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def delete(self, name, pk):
         '''Create A Vector'''
         app_id = request.app_id
         es_client = ESClient(app_id=app_id, index_name=name)
-        result = es_client.delete_es_document(pk)
-        return {"result": result.body}
+        es_client.delete_es_document(pk)
+        return {"success": True}
 
     @collection_ns.doc('upsert_vector')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def put(self, name, pk):
         '''Create A Vector'''
         data = request.json
         team_id = request.team_id
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
         text = data.get("text")
+        if not text:
+            raise Exception("text is empty")
         metadata = data.get("metadata")
-        collection = table.find_by_name(team_id, name)
-        embedding_model = collection["embeddingModel"]
+        collection = get_collection_or_fail(app_id, team_id, name)
+        embedding_model = collection.embedding_model
         embedding = generate_embedding_of_model(embedding_model, [text])
         es_client = ESClient(
             app_id=app_id,
@@ -498,7 +475,7 @@ class CollectionVectorDetail(Resource):
                 "embeddings": embedding[0]
             }
         )
-        return {"result": result.body}
+        return {"success": True}
 
 
 @collection_ns.route('/<string:name>/vectors-batch')
@@ -511,18 +488,12 @@ class CollectionVectorBatch(Resource):
         "x-monkey-tool-ignore": True,
     })
     @collection_ns.doc('upsert_vectors')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     def put(self, name):
         '''Create A Vector'''
         app_id = request.app_id
-        table = CollectionTable(
-            app_id=app_id
-        )
-        collection = table.find_by_name_without_team(name)
-        if not collection:
-            raise Exception(f"向量数据库 {name} 不存在")
-        embedding_model = collection.get("embeddingModel")
+        team_id = request.team_id
+        collection = get_collection_or_fail(app_id=app_id, team_id=team_id, name=name)
+        embedding_model = collection.embedding_model
         es_client = ESClient(app_id=app_id, index_name=name)
         list = request.json
         texts = [item["text"] for item in list]
@@ -533,7 +504,7 @@ class CollectionVectorBatch(Resource):
                 "_id": item['pk'],
                 "_source": {
                     "page_content": item['text'],
-                    "metadata": item['metadata'],
+                    "metadata": item.get('metadata', {}),
                     "embeddings": embeddings[index]
                 }
             })
@@ -550,8 +521,6 @@ class CollectionFullTextSearch(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @collection_ns.doc('fulltext_search')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     @collection_ns.vendor({
         "x-monkey-tool-name": "fulltext_search_documents",
         "x-monkey-tool-categories": ['query'],
@@ -718,8 +687,6 @@ class CollectionVectorSearch(Resource):
     '''Shows a list of all todos, and lets you POST to add new tasks'''
 
     @collection_ns.doc('vector_search')
-    @collection_ns.expect(collection_model)
-    @collection_ns.marshal_with(collection_model, code=201)
     @collection_ns.vendor({
         "x-monkey-tool-name": "search_vector",
         "x-monkey-tool-categories": ['query'],
@@ -799,22 +766,20 @@ class CollectionVectorSearch(Resource):
         '''Full Text Search'''
         input_data = request.json
         team_id = request.team_id
-        collection_name = input_data.get('collection')
         question = input_data.get('question')
-        top_k = input_data.get('topK')
+        if not question:
+            raise Exception("question is empty")
+        top_k = input_data.get('topK', 3)
         metadata_filter = input_data.get('metadata_filter', None)
 
         app_id = request.app_id
-        table = CollectionTable(app_id=app_id)
-        collection = table.find_by_name(team_id, name=collection_name)
-        if not collection:
-            raise Exception(f"数据集 {collection_name} 不存在或未授权")
+        collection = get_collection_or_fail(app_id, team_id, name)
 
         es_client = ESClient(
             app_id=app_id,
-            index_name=collection_name
+            index_name=name
         )
-        embedding_model = collection.get('embeddingModel')
+        embedding_model = collection.embedding_model
         embedding = generate_embedding_of_model(embedding_model, question)
 
         data = es_client.vector_search(embedding, top_k, metadata_filter)

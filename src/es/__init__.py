@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
 import traceback
 
-from src.database import FileProcessProgressTable, FileRecord
+from src.database import FileProgressTable, FileRecordTable
 from src.oss import oss_client
 from src.utils import generate_md5, generate_embedding_of_model, chunk_list, ensure_directory_exists
 from src.utils.document_loader import load_documents
@@ -25,7 +25,8 @@ es = Elasticsearch(
     http_auth=(
         ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD)
     if ELASTICSEARCH_USERNAME and ELASTICSEARCH_PASSWORD
-    else None
+    else None,
+    verify_certs=False
 )
 
 
@@ -227,9 +228,13 @@ class ESClient:
         file_path = oss_client.download_file(file_url, folder)
         if not file_path:
             raise Exception("下载文件失败")
-        progress_table = FileProcessProgressTable(app_id=self.app_id)
+        progress_table = FileProgressTable(app_id=self.app_id)
         if task_id:
-            progress_table.update_progress(task_id, 0.1, "已下载文件到服务器")
+            progress_table.update_progress(task_id=task_id,
+                                           collection_name=self.index_name_with_no_suffix,
+                                           progress=0.1, message="已下载文件到服务器",
+                                           status="IN_PROGRESS"
+                                           )
         texts = load_documents(file_path, chunk_size=chunk_size, chunk_overlap=chunk_overlap, separator=separator,
                                pre_process_rules=pre_process_rules,
                                jqSchema=jqSchema
@@ -238,7 +243,8 @@ class ESClient:
         if len(texts) == 0:
             return
         if task_id:
-            progress_table.update_progress(task_id, 0.3, "已加载文件")
+            progress_table.update_progress(collection_name=self.index_name_with_no_suffix, task_id=task_id,
+                                           progress=0.3, message="已加载文件", status="IN_PROGRESS")
 
         pks = [
             generate_md5(text) for text in texts
@@ -262,17 +268,24 @@ class ESClient:
             })
 
         if task_id:
-            progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
+            progress_table.update_progress(collection_name=self.index_name_with_no_suffix, task_id=task_id,
+                                           progress=0.8, message="已生成向量，正在写入向量数据库", status="IN_PROGRESS")
         self.upsert_documents_batch(es_documents)
         if task_id:
-            progress_table.update_progress(task_id, 1.0, f"完成，共写入 {len(es_documents)} 条向量数据")
+            progress_table.update_progress(collection_name=self.index_name_with_no_suffix, task_id=task_id,
+                                           progress=1.0, message=f"完成，共写入 {len(es_documents)} 条向量数据",
+                                           status="FINISHED")
 
-        file_table = FileRecord(app_id=self.app_id)
-        file_table.create_record(team_id, self.index_name_with_no_suffix, file_url, {
-            "chunkSize": chunk_size,
-            "chunkOverlap": chunk_overlap,
-            "separator": separator,
-            "preProcessRules": pre_process_rules,
-            "jqSchema": jqSchema
-        })
+        file_table = FileRecordTable(app_id=self.app_id)
+        file_table.add_record(
+            collection_name=self.index_name_with_no_suffix,
+            file_url=file_url,
+            split_config={
+                "chunkSize": chunk_size,
+                "chunkOverlap": chunk_overlap,
+                "separator": separator,
+                "preProcessRules": pre_process_rules,
+                "jqSchema": jqSchema
+            }
+        )
         return len(es_documents)

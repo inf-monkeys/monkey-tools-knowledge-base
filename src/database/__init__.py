@@ -1,335 +1,237 @@
-import time
-import os
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, JSON, Text, func, select
+from datetime import datetime
+from src.config import database_url
 
-from pymongo import MongoClient
+from src.utils import generate_mongoid
 
-MONGO_URL = os.environ.get("MONGO_URL")
+engine = create_engine(database_url, echo=True)
+Session = sessionmaker(bind=engine)
+session = Session()
 
-client = MongoClient(MONGO_URL)
-db = client.vines
+
+class Base(DeclarativeBase):
+    pass
 
 
-class CollectionTable:
+def create_collections_model_with_prefix(prefix):
+    class DynamicCollectionsModel(Base):
+        __tablename__ = f"{prefix}_text_collections"
+        __table_args__ = {'extend_existing': True}
 
+        id = Column(String, primary_key=True)
+        created_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000))
+        updated_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000),
+                                   onupdate=int(datetime.now().timestamp() * 1000))
+        is_deleted = Column(Boolean, default=False)
+        creator_userId = Column(String)
+        team_id = Column(String)
+        name = Column(String)
+        display_name = Column(String)
+        description = Column(Text)
+        icon_url = Column(String)
+        embedding_model = Column(String)
+        dimension = Column(Integer)
+        asset_type = Column(String, default='text-collection')
+
+        def serialize(self):
+            return {
+                "id": self.id,
+                "createdTimestamp": self.created_timestamp,
+                "updatedTimestamp": self.updated_timestamp,
+                "isDeleted": self.is_deleted,
+                "creatorUserId": self.creator_userId,
+                "teamId": self.team_id,
+                "name": self.name,
+                "displayName": self.display_name,
+                "description": self.description,
+                "iconUrl": self.icon_url,
+                "embeddingModel": self.embedding_model,
+                "assetType": self.asset_type
+            }
+
+    Base.metadata.create_all(engine)
+    return DynamicCollectionsModel
+
+
+def create_collection_metadata_field_model_with_prefix(prefix):
+    class DynamicCollectionMetadataFieldModel(Base):
+        __tablename__ = f"{prefix}_text_collection_metadata_fields"
+        __table_args__ = {'extend_existing': True}
+
+        id = Column(String, primary_key=True)
+        created_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000))
+        updated_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000),
+                                   onupdate=int(datetime.now().timestamp() * 1000))
+        is_deleted = Column(Boolean, default=False)
+        collection_name = Column(String)
+        key = Column(String)
+        display_name = Column(String, nullable=True)
+        description = Column(String, nullable=True)
+        built_in = Column(Boolean, default=False)
+        required = Column(Boolean, default=False)
+
+    Base.metadata.create_all(engine)
+    return DynamicCollectionMetadataFieldModel
+
+
+class CollectionMetadataFieldTable:
     def __init__(self, app_id):
         self.app_id = app_id
-        self.collection = db[self.app_id + "-" + "assets-text-collections"]
 
-    def insert_one(
-            self,
-            creator_user_id,
-            team_id,
-            name,
-            display_name,
-            description,
-            logo,
-            embedding_model,
-            dimension,
-            metadata_fields
-    ):
-        timestamp = int(time.time())
-        metadata_fields = metadata_fields or [
-            {
-                "name": 'userId',
-                "displayName": '创建此向量的用户 ID',
-                "description": '创建此向量的用户 ID',
-                "builtIn": True,
-                "required": True,
-            },
-            {
-                "name": 'workflowId',
-                "displayName": '工作流 ID',
-                "description": '当此向量是通过工作流创建的时候会包含，为创建此向量的工作流 ID',
-                "builtIn": True,
-                "required": False,
-            },
-            {
-                "name": 'createdAt',
-                "displayName": '创建时间',
-                "description": 'Unix 时间戳',
-                "builtIn": True,
-                "required": True,
-            },
-            {
-                "name": 'fileUrl',
-                "displayName": '来源文件链接',
-                "description": '当通过文件导入时会包含此值，为来源文件的链接',
-                "builtIn": True,
-                "required": False,
-            },
-        ]
-        return self.collection.insert_one({
-            "createdTimestamp": timestamp,
-            "updatedTimestamp": timestamp,
-            "isDeleted": False,
-            "creatorUserId": creator_user_id,
-            "teamId": team_id,
-            "name": name,
-            "displayName": display_name,
-            "description": description,
-            "logo": logo,
-            "embeddingModel": embedding_model,
-            "dimension": dimension,
-            "metadataFields": metadata_fields,
-            "authorizedTargets": [],
-            "assetType": "text-collection"
-        })
-
-    def check_name_conflicts(self, name):
-        record = self.collection.find_one({
-            "name": name,
-            "isDeleted": False
-        })
-        return bool(record)
-
-    def find_by_team(self, team_id):
-        return self.collection.find({
-            "$or": [
-                {
-                    "teamId": team_id,
-                    "isDeleted": False,
-                },
-                {
-                    "authorizedTargets": {
-                        "$elemMatch": {
-                            "targetType": "TEAM",
-                            "targetId": team_id
-                        }
-                    }
-                }
-            ]
-        }).sort("_id", -1)
-
-    def find_by_name(self, team_id, name):
-        return self.collection.find_one({
-            "$or": [
-                {
-                    "isDeleted": False,
-                    "name": name,
-                    "teamId": team_id,
-                },
-                {
-                    "isDeleted": False,
-                    "name": name,
-                    "authorizedTargets": {
-                        "$elemMatch": {
-                            "targetType": "TEAM",
-                            "targetId": team_id
-                        }
-                    }
-                }
-            ]
-        })
-
-    def find_by_name_without_team(self, name):
-        return self.collection.find_one({
-            "isDeleted": False,
-            "name": name
-        })
-
-    def update_by_name(self, team_id, name, description=None, display_name=None, logo=None, new_name=None):
-        updates = {}
-        if description:
-            updates['description'] = description
-        if display_name:
-            updates['displayName'] = display_name
-        if logo:
-            updates['logo'] = logo
-        if new_name:
-            updates['name'] = new_name
-        updates['updatedTimestamp'] = int(time.time())
-        return self.collection.update_one(
-            {
-                "teamId": team_id,
-                "isDeleted": False,
-                "name": name
-            },
-            {
-                "$set": updates
-            }
-        )
-
-    def delete_by_name(self, team_id, name):
-        return self.collection.update_one(
-            {
-                "teamId": team_id,
-                "isDeleted": False,
-                "name": name
-            },
-            {
-                "$set": {
-                    "isDeleted": True
-                }
-            }
-        )
-
-    def authorize_target(self, name: str, team_id: str):
-        return self.collection.update_one(
-            {
-                "isDeleted": False,
-                "name": name
-            },
-            {
-                "$push": {
-                    "authorizedTargets": {
-                        "targetType": "TEAM",
-                        "targetId": team_id
-                    }
-                }
-            }
-        )
-
-    def add_metadata_fields_if_not_exists(self, team_id, coll_name, field_names):
-        coll = self.find_by_name(team_id, coll_name)
-        fields_to_add = []
-        for field_name in field_names:
-            not_exist = len(list(filter(lambda x: x['name'] == field_name, coll['metadataFields']))) == 0
-            if not_exist:
-                fields_to_add.append(field_name)
-        if len(fields_to_add) == 0:
-            return
-        for field_name in fields_to_add:
-            self.collection.update_one(
-                {
-                    "teamId": team_id,
-                    "isDeleted": False,
-                    "name": coll_name
-                },
-                {
-                    "$push": {
-                        "metadataFields": {
-                            "name": field_name,
-                            "displayName": '',
-                            "description": '',
-                            "builtIn": False,
-                            "required": False,
-                        }
-                    }
-                }
+    def add_if_not_exists(self, collection_name, key, display_name=None, description=None, built_in=None,
+                          required=None):
+        model = create_collection_metadata_field_model_with_prefix(self.app_id)
+        exists = session.query(model).filter_by(
+            collection_name=collection_name,
+            key=key,
+            is_deleted=False
+        ).first()
+        if not exists:
+            record = model(
+                id=generate_mongoid(),
+                collection_name=collection_name,
+                key=key,
+                display_name=display_name,
+                description=description,
+                built_in=built_in,
+                required=required
             )
+            session.add(record)
+            session.commit()
 
 
-class AccountTable:
+def create_collection_authorization_model_with_prefix(prefix):
+    class DynamicCollectionAuthorizationModel(Base):
+        __tablename__ = f"{prefix}_text_collection_authorizations"
+        __table_args__ = {'extend_existing': True}
 
-    def __init__(self, app_id):
-        self.app_id = app_id
-        self.collection = db[self.app_id + "-" + "vector-accounts"]
+        id = Column(String, primary_key=True)
+        created_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000))
+        updated_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000),
+                                   onupdate=int(datetime.now().timestamp() * 1000))
+        is_deleted = Column(Boolean, default=False)
+        collection_name = Column(String)
+        team_id = Column(String)
 
-    def find_by_team_id(self, team_id):
-        return self.collection.find_one({
-            "teamId": team_id,
-            "isDeleted": False,
-        })
-
-    def create_user(self, team_id, role_name, username, password):
-        timestamp = int(time.time())
-        self.collection.insert_one({
-            "createdTimestamp": timestamp,
-            "updatedTimestamp": timestamp,
-            "isDeleted": False,
-            "teamId": team_id,
-            "roleName": role_name,
-            "username": username,
-            "password": password
-        })
-        return self.find_by_team_id(team_id)
-
-    def find_or_create(self, team_id, role_name, username, password):
-        entity = self.find_by_team_id(team_id)
-        if entity:
-            return entity
-        return self.create_user(team_id, role_name, username, password)
+    Base.metadata.create_all(engine)
+    return DynamicCollectionAuthorizationModel
 
 
-class FileRecord:
-    def __init__(self, app_id):
-        self.app_id = app_id
-        self.collection = db[self.app_id + "-" + "vector-file-records"]
+def create_file_progress_model_with_prefix(prefix):
+    class DynamicFileProgressModel(Base):
+        __tablename__ = f"{prefix}_file_progress"
+        __table_args__ = {'extend_existing': True}
 
-    def create_record(self, team_id, collection_name, file_url, split_config):
-        timestamp = int(time.time())
-        self.collection.insert_one({
-            "createdTimestamp": timestamp,
-            "updatedTimestamp": timestamp,
-            "isDeleted": False,
-            "teamId": team_id,
-            "collectionName": collection_name,
-            "fileUrl": file_url,
-            "splitConfig": split_config
-        })
+        id = Column(String, primary_key=True)
+        created_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000))
+        updated_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000),
+                                   onupdate=int(datetime.now().timestamp() * 1000))
+        is_deleted = Column(Boolean, default=False)
+        collection_name = Column(String)
+        progress = Column(Integer, nullable=True)
+        task_id = Column(String)
+        status = Column(String)
+        message = Column(String)
 
-    def get_file_count(self, team_id, collection_name):
-        return self.collection.count_documents({
-            "teamId": team_id,
-            "isDeleted": False,
-            "collectionName": collection_name
-        })
-
-
-class FileProcessProgressTable:
-
-    def __init__(self, app_id):
-        self.app_id = app_id
-        self.collection = db[self.app_id + "-" + "vector-file-process-progress"]
-
-    def list_tasks(self, team_id, collection_name):
-        return self.collection.find(
-            {
-                "teamId": team_id,
-                "collectionName": collection_name
+        def serialize(self):
+            return {
+                "createdTimestamp": self.created_timestamp,
+                "updatedTimestamp": self.updated_timestamp,
+                "progress": self.progress,
+                "taskId": self.task_id,
+                "status": self.status,
+                "message": self.message,
             }
-        ).sort("_id", -1)
 
-    def get_task(self, team_id, collection_name, task_id):
-        return self.collection.find_one({
-            "teamId": team_id,
-            "collectionName": collection_name,
-            "taskId": task_id,
-            "isDeleted": False,
-        })
+    Base.metadata.create_all(engine)
+    return DynamicFileProgressModel
 
-    def create_task(self, team_id, collection_name, task_id):
-        timestamp = int(time.time())
-        self.collection.insert_one({
-            "createdTimestamp": timestamp,
-            "updatedTimestamp": timestamp,
-            "isDeleted": False,
-            "teamId": team_id,
-            "collectionName": collection_name,
-            "taskId": task_id,
-            "events": []
-        })
 
-    def mark_task_failed(self, task_id, message):
-        self.collection.update_one(
-            {
-                "taskId": task_id
-            },
-            {
-                "$push": {
-                    "events": {
-                        "message": message,
-                        "timestamp": int(time.time()),
-                        "status": "FAILED"
-                    }
-                }
-            }
+class FileProgressTable:
+    def __init__(self, app_id):
+        self.app_id = app_id
+
+    def update_progress(self, collection_name, task_id, status, message, progress=None):
+        model = create_file_progress_model_with_prefix(self.app_id)
+        record = model(
+            id=generate_mongoid(),
+            collection_name=collection_name,
+            task_id=task_id,
+            progress=progress,
+            status=status,
+            message=message,
         )
+        session.add(record)
+        session.commit()
 
-    def update_progress(self, task_id, progress, message):
-        status = "INPROGRESS" if progress < 1 else "COMPLETED"
-        self.collection.update_one(
-            {
-                "taskId": task_id
-            },
-            {
-                "$push": {
-                    "events": {
-                        "progress": progress,
-                        "message": message,
-                        "timestamp": int(time.time()),
-                        "status": status
-                    }
-                }
-            }
+    def get_task_status(self, task_id):
+        model = create_file_progress_model_with_prefix(self.app_id)
+        records = session.query(model).filter_by(task_id=task_id).all()
+        return records
+
+    def list_tasks(self, collection_name):
+        model = create_file_progress_model_with_prefix(self.app_id)
+        # 定义窗口函数
+        row_number = func.row_number().over(
+            partition_by=model.task_id,
+            order_by=model.created_timestamp.desc()
+        ).label('rn')
+
+        # 构建子查询
+        subquery = (
+            select(
+                model.task_id,
+                model.progress,
+                model.status,
+                model.message,
+                row_number
+            )
+            .where(model.collection_name == collection_name)
+            .alias('subquery')
         )
+        query = select(subquery).where(subquery.c.rn == 1)
+        raw_results = session.execute(query).fetchall()
+        data = []
+        for item in raw_results:
+            data.append({
+                "taskId": item[0],
+                "progress": item[1],
+                "status": item[2],
+                "message": item[3]
+            })
+        return data
+
+
+def create_file_records_model_with_prefix(prefix):
+    class DynamicFileRecordsModel(Base):
+        __tablename__ = f"{prefix}_file_records"
+        __table_args__ = {'extend_existing': True}
+
+        id = Column(String, primary_key=True)
+        created_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000))
+        updated_timestamp = Column(Integer, default=int(datetime.now().timestamp() * 1000),
+                                   onupdate=int(datetime.now().timestamp() * 1000))
+        is_deleted = Column(Boolean, default=False)
+        collection_name = Column(String)
+        file_url = Column(String)
+        split_config = Column(JSON)
+
+    Base.metadata.create_all(engine)
+    return DynamicFileRecordsModel
+
+
+class FileRecordTable:
+    def __init__(self, app_id):
+        self.app_id = app_id
+
+    def add_record(self, collection_name, file_url, split_config):
+        model = create_file_records_model_with_prefix(self.app_id)
+        record = model(
+            id=generate_mongoid(),
+            collection_name=collection_name,
+            file_url=file_url,
+            split_config=split_config,
+        )
+        session.add(record)
+        session.commit()
