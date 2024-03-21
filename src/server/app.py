@@ -31,7 +31,8 @@ def handle_exception(error):
 def get_manifest():
     return {
         "schema_version": "v1",
-        "namespace": 'monkeys_tools_vector',
+        "display_name": "向量",
+        "namespace": 'monkey_tools_vector',
         "auth": {
             "type": "none"
         },
