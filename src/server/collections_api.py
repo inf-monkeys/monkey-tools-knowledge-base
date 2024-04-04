@@ -6,10 +6,10 @@ from flask_restx import Resource
 from src.database import create_collections_model_with_prefix, session, \
     create_collection_authorization_model_with_prefix, FileProgressTable, CollectionMetadataFieldTable
 
-from ..es import ESClient
-from ..queue import submit_task, PROCESS_FILE_QUEUE_NAME
-from ..utils import generate_random_string, get_dimension_by_embedding_model, generate_short_id, \
-    generate_embedding_of_model, generate_md5, generate_mongoid
+from src.es import ESClient
+from src.queue import submit_task, PROCESS_FILE_QUEUE_NAME
+from src.utils import generate_random_string, generate_short_id, generate_md5, generate_mongoid
+from src.utils.embedding import get_dimension_by_embedding_model, generate_embedding_of_model
 
 collection_ns = api.namespace('collections', description='Collection operations')
 

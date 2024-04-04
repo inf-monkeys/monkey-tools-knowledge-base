@@ -7,7 +7,8 @@ import traceback
 
 from src.database import FileProgressTable, FileRecordTable
 from src.oss import oss_client
-from src.utils import generate_md5, generate_embedding_of_model, chunk_list, ensure_directory_exists
+from src.utils import generate_md5, chunk_list, ensure_directory_exists
+from src.utils.embedding import generate_embedding_of_model
 from src.utils.document_loader import load_documents
 from src.config import config_data
 

@@ -1,9 +1,10 @@
 from .app import api
 from flask import request
 from flask_restx import Resource
-from ..utils import SUPPORTED_EMBEDDING_MODELS, ROOT_FOLDER
-from ..utils.oss.aliyunoss import AliyunOSSClient
-from ..utils.oss.tos import TOSClient
+from src.utils import ROOT_FOLDER
+from src.utils.embedding import SUPPORTED_EMBEDDING_MODELS
+from src.utils.oss.aliyunoss import AliyunOSSClient
+from src.utils.oss.tos import TOSClient
 import os
 from FlagEmbedding import FlagReranker
 

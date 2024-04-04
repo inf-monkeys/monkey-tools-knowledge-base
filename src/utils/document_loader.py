@@ -1,38 +1,48 @@
 from langchain.document_loaders import TextLoader, PyMuPDFLoader, CSVLoader, UnstructuredFileLoader, \
     UnstructuredMarkdownLoader, \
-    JSONLoader
-from langchain.text_splitter import CharacterTextSplitter
+    JSONLoader, UnstructuredWordDocumentLoader, UnstructuredPowerPointLoader, UnstructuredEmailLoader
+from .loaders.image_loader import UnstructuredPaddleImageLoader
+from .splitters.chinese_text_splitter import ChineseTextSplitter
 import zipfile
 import os
 import uuid
 from pathlib import Path
 import shutil
-
-from src.utils import txt_pre_process
+import pandas as pd
+from .processors import document_process
 
 
 def load_single_document(file_path, jq_schema=None, pre_process_rules=[]):
-    file_ext = file_path.split('.')[-1]
-    if file_ext == 'pdf':
+    if file_path.lower().endswith('.pdf'):
         loader = PyMuPDFLoader(file_path=file_path)
-    elif file_ext == 'csv':
+    elif file_path.lower().endswith('.csv'):
         loader = CSVLoader(file_path=file_path)
-    elif file_ext == 'txt':
+    elif file_path.lower().endswith('.xlsx'):
+        csv_file_path = file_path[:-5] + '.csv'
+        xlsx = pd.read_excel(file_path, engine='openpyxl')
+        xlsx.to_csv(csv_file_path, index=False)
+        loader = CSVLoader(csv_file_path, csv_args={"delimiter": ",", "quotechar": '"'})
+    elif file_path.lower().endswith('.txt'):
         loader = TextLoader(file_path=file_path)
-    elif file_ext == 'md':
+    elif file_path.lower().endswith('.md'):
         loader = UnstructuredMarkdownLoader(file_path=file_path)
-    elif file_ext == '.json':
+    elif file_path.lower().endswith('.json'):
         loader = JSONLoader(file_path=file_path, jq_schema=jq_schema, text_content=False)
-    elif file_ext == '.jsonl':
+    elif file_path.lower().endswith('.jsonl'):
         loader = JSONLoader(file_path=file_path, json_lines=True, jq_schema=jq_schema, text_content=False)
+    elif file_path.lower().endswith('.docx'):
+        loader = UnstructuredWordDocumentLoader(file_path, mode="elements")
+    elif file_path.lower().endswith(".pptx"):
+        loader = UnstructuredPowerPointLoader(file_path, mode="elements")
+    elif file_path.lower().endswith(".eml"):
+        loader = UnstructuredEmailLoader(file_path, mode="elements")
     else:
         loader = UnstructuredFileLoader(file_path=file_path)
+
     documents = loader.load()
 
     if len(pre_process_rules) > 0:
-        for doc in documents:
-            doc.page_content = txt_pre_process(doc.page_content, pre_process_rules)
-
+        documents = document_process(documents, pre_process_rules)
     return documents
 
 
@@ -55,7 +65,12 @@ def load_documents(
         pdf_files = Path(extract_to).rglob('**/*.pdf')
         json_files = Path(extract_to).rglob('**/*.json')
         jsonl_files = Path(extract_to).rglob('**/*.jsonl')
-        all_files = list(txt_files) + list(md_files) + list(pdf_files) + list(json_files) + list(jsonl_files)
+        csv_files = Path(extract_to).rglob('**/*.csv')
+        docx_files = Path(extract_to).rglob('**/*.docx')
+        xlsx_files = Path(extract_to).rglob('**/*.xlsx')
+        eml_files = Path(extract_to).rglob('**/*.eml')
+        all_files = list(txt_files) + list(md_files) + list(pdf_files) + list(json_files) + list(jsonl_files) + list(
+            csv_files) + list(docx_files) + list(xlsx_files) + list(eml_files)
         valid_files = []
         for file in all_files:
             if "__MACOSX" not in str(file):
@@ -77,11 +92,12 @@ def load_documents(
         return documents
     else:
         separator = separator.replace('\\n', '\n')
-        text_splitter = CharacterTextSplitter(
+        text_splitter = ChineseTextSplitter(
             separator=separator,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            is_separator_regex=True
+            is_separator_regex=True,
+            sentence_size=chunk_size
         )
         texts = text_splitter.split_documents(documents)
         print(f"使用 CharacterTextSplitter 切割到 {len(texts)} 个片段")
