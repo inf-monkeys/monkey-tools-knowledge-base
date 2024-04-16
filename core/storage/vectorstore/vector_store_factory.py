@@ -128,6 +128,9 @@ class VectorStoreFactory:
 
     def delete_by_ids(self, ids: list[str]) -> None:
         self._vector_processor.delete_by_ids(ids)
+        
+    def update_by_id(self, id: str, document: Document) -> None:
+        self._vector_processor.update_by_id(id, document)
 
     def delete_by_metadata_field(self, key: str, value: str) -> None:
         self._vector_processor.delete_by_metadata_field(key, value)

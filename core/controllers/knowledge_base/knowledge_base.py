@@ -2,10 +2,6 @@ from loguru import logger
 from core.middleware.db import db
 from flask import request, jsonify
 from flask_restx import Resource
-from core.es import ESClient
-from core.utils import (
-    generate_short_id,
-)
 from core.utils.embedding import (
     get_dimension_by_embedding_model,
     SUPPORTED_EMBEDDING_MODELS,

@@ -44,6 +44,10 @@ class BaseVectorStore(ABC):
     @abstractmethod
     def search_by_full_text(self, query: str, **kwargs: Any) -> list[Document]:
         raise NotImplementedError
+    
+    @abstractmethod
+    def update_by_id(self, id: str, document: Document) -> None:
+        raise NotImplementedError
 
     def delete(self) -> None:
         raise NotImplementedError

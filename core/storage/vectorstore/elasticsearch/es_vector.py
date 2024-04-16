@@ -69,6 +69,7 @@ class ElasticsearchVectorStore(BaseVectorStore):
                             "created_at": {"type": "date"},
                             "filename": {"type": "keyword"},
                             "document_id": {"type": "keyword"},
+                            "user_id": {"type": "keyword"},
                         },
                     },
                 }
@@ -116,7 +117,6 @@ class ElasticsearchVectorStore(BaseVectorStore):
         self.__upsert_documents_batch(es_documents)
 
     def delete_by_document_id(self, document_id: str):
-
         ids = self.get_ids_by_metadata_field("document_id", document_id)
         if ids:
             self._client.delete(collection_name=self._collection_name, pks=ids)
@@ -141,55 +141,25 @@ class ElasticsearchVectorStore(BaseVectorStore):
         logger.info(f"Deleted {res['deleted']} documents")
 
     def delete_by_ids(self, doc_ids: list[str]) -> None:
+        # TODO: Delete by batch
+        for pk in doc_ids:
+            self._client.delete(index=self._collection_name, id=pk)
 
-        result = self._client.query(
-            collection_name=self._collection_name,
-            filter=f'metadata["doc_id"] in {doc_ids}',
-            output_fields=["id"],
+    def update_by_id(self, id: str, document: Document) -> None:
+        self._client.update(
+            index=self._collection_name,
+            id=id,
+            body={
+                "doc": {
+                    "page_content": document.page_content,
+                    "metadata": document.metadata,
+                }
+            },
         )
-        if result:
-            ids = [item["id"] for item in result]
-            self._client.delete(collection_name=self._collection_name, pks=ids)
 
     def delete(self) -> None:
         # delete the entire index
         self._client.indices.delete(index=self._collection_name)
-
-    def text_exists(self, id: str) -> bool:
-        alias = uuid4().hex
-        if self._client_config.secure:
-            uri = (
-                "https://"
-                + str(self._client_config.host)
-                + ":"
-                + str(self._client_config.port)
-            )
-        else:
-            uri = (
-                "http://"
-                + str(self._client_config.host)
-                + ":"
-                + str(self._client_config.port)
-            )
-        connections.connect(
-            alias=alias,
-            uri=uri,
-            user=self._client_config.user,
-            password=self._client_config.password,
-        )
-
-        from pymilvus import utility
-
-        if not utility.has_collection(self._collection_name, using=alias):
-            return False
-
-        result = self._client.query(
-            collection_name=self._collection_name,
-            filter=f'metadata["doc_id"] == "{id}"',
-            output_fields=["id"],
-        )
-
-        return len(result) > 0
 
     def search_by_vector(
         self, query_vector: list[float], **kwargs: Any
@@ -243,18 +213,19 @@ class ElasticsearchVectorStore(BaseVectorStore):
         if metadata_filter:
             for key, value in metadata_filter.items():
                 if value is not None:
-                    must_statements.append({"term": {f"metadata.{key}.keyword": value}})
+                    must_statements.append({"term": {f"metadata.{key}": value}})
         try:
+            sort = (
+                [{"metadata.created_at": {"order": "desc"}}]
+                if sort_by_created_at
+                else None
+            )
             response = self._client.search(
                 index=self._collection_name,
                 query={"bool": {"must": must_statements}},
                 from_=from_,
                 size=size,
-                sort=(
-                    [{"metadata.created_at": {"order": "desc"}}]
-                    if sort_by_created_at
-                    else None
-                ),
+                sort=sort,
             )
 
             return [
@@ -268,97 +239,6 @@ class ElasticsearchVectorStore(BaseVectorStore):
         except elasticsearch.NotFoundError:
             return []
 
-    def create_collection(
-        self,
-        embeddings: list,
-        metadatas: Optional[list[dict]] = None,
-        index_params: Optional[dict] = None,
-    ):
-        lock_name = "vector_indexing_lock_{}".format(self._collection_name)
-        with redis_client.lock(lock_name, timeout=20):
-            collection_exist_cache_key = "vector_indexing_{}".format(
-                self._collection_name
-            )
-            if redis_client.get(collection_exist_cache_key):
-                return
-            # Grab the existing collection if it exists
-            from pymilvus import utility
-
-            alias = uuid4().hex
-            if self._client_config.secure:
-                uri = (
-                    "https://"
-                    + str(self._client_config.host)
-                    + ":"
-                    + str(self._client_config.port)
-                )
-            else:
-                uri = (
-                    "http://"
-                    + str(self._client_config.host)
-                    + ":"
-                    + str(self._client_config.port)
-                )
-            connections.connect(
-                alias=alias,
-                uri=uri,
-                user=self._client_config.user,
-                password=self._client_config.password,
-            )
-            if not utility.has_collection(self._collection_name, using=alias):
-                from pymilvus import CollectionSchema, DataType, FieldSchema
-                from pymilvus.orm.types import infer_dtype_bydata
-
-                # Determine embedding dim
-                dim = len(embeddings[0])
-                fields = []
-                if metadatas:
-                    fields.append(
-                        FieldSchema(
-                            Field.METADATA_KEY.value, DataType.JSON, max_length=65_535
-                        )
-                    )
-
-                # Create the text field
-                fields.append(
-                    FieldSchema(
-                        Field.CONTENT_KEY.value, DataType.VARCHAR, max_length=65_535
-                    )
-                )
-                # Create the primary key field
-                fields.append(
-                    FieldSchema(
-                        Field.PRIMARY_KEY.value,
-                        DataType.INT64,
-                        is_primary=True,
-                        auto_id=True,
-                    )
-                )
-                # Create the vector field, supports binary or float vectors
-                fields.append(
-                    FieldSchema(
-                        Field.VECTOR.value, infer_dtype_bydata(embeddings[0]), dim=dim
-                    )
-                )
-
-                # Create the schema for the collection
-                schema = CollectionSchema(fields)
-
-                for x in schema.fields:
-                    self._fields.append(x.name)
-                # Since primary field is auto-id, no need to track it
-                self._fields.remove(Field.PRIMARY_KEY.value)
-
-                # Create the collection
-                collection_name = self._collection_name
-                self._client.create_collection_with_schema(
-                    collection_name=collection_name,
-                    schema=schema,
-                    index_param=index_params,
-                    consistency_level=self._consistency_level,
-                )
-            redis_client.set(collection_exist_cache_key, 1, ex=3600)
-
     def _init_client(self, config: ElasticSearchConfig) -> Elasticsearch:
         return Elasticsearch(
             config.url,
@@ -369,3 +249,6 @@ class ElasticsearchVectorStore(BaseVectorStore):
             ),
             verify_certs=False,
         )
+
+    def text_exists(self, id: str) -> bool:
+        return self._client.exists(index=self._collection_name, id=id)

@@ -3,6 +3,7 @@ from . import knowledge_base
 from . import segments
 from . import search
 from . import tasks
+from . import metadata_field
 
 
 def regieter(api):
@@ -11,4 +12,4 @@ def regieter(api):
     segments.register(api)
     search.register(api)
     tasks.register(api)
-
+    metadata_field.register(api)

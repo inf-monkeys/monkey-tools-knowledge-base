@@ -1,11 +1,10 @@
+import time
 from typing import List
-from flask import request, jsonify
+from flask import request
 from flask_restx import Resource
 from core.es import ESClient
 from core.models.document import Document
-from core.utils import (
-    generate_md5,
-)
+from core.models.metadata_field import MetadataFieldEntity
 from core.utils.embedding import (
     generate_embedding_of_model,
 )
@@ -21,26 +20,23 @@ def register(api):
     @knowledge_base_ns.route("/<string:knowledge_base_id>/segments")
     @knowledge_base_ns.param("knowledge_base_id", "The knowledge base identifier")
     class KnowledgeBaseSegments(Resource):
-        """List Segments of a Document"""
-
-        @knowledge_base_ns.doc("list_segments")
-        def get(self, knowledge_base_name):
-            """List all segments of a document"""
-            knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_name)
-            document = knowledge_base.get_document(document_id)
-            return jsonify(document.segments)
-
         """Create A Segment"""
 
         @knowledge_base_ns.doc("create_segment")
         def post(self, knowledge_base_id):
             """Create A Vector"""
+            user_id = request.user_id
             knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
             data = request.json
             text = data.get("text")
             if not text:
                 raise Exception("text is empty")
             metadata = data.get("metadata", {})
+
+            # set default metadata: created_at and user_id
+            metadata["created_at"] = int(time.time())
+            metadata["user_id"] = user_id
+
             delimiter = data.get("delimiter")
 
             text_list: List[Document] = []
@@ -66,57 +62,47 @@ def register(api):
                 knowledgebase=knowledge_base,
             )
             vector_store.save_documents(text_list)
+
+            metadata_fields = metadata.keys()
+            MetadataFieldEntity.add_keys_if_not_exists(
+                knowledge_base_id, metadata_fields
+            )
+
             return {
                 "inserted": len(text_list),
             }
 
-    @knowledge_base_ns.route(
-        "/<string:knowledge_base_id>/<string:document_id>/segments/<string:pk>"
-    )
-    @knowledge_base_ns.param("knowledge_base_name", "The knowledge base identifier")
-    @knowledge_base_ns.param("document_id", "The document identifier")
+    @knowledge_base_ns.route("/<string:knowledge_base_id>/segments/<string:pk>")
+    @knowledge_base_ns.param("knowledge_base_id", "The knowledge base identifier")
     @knowledge_base_ns.param("pk", "The segment identifier")
     class SegmentDetail(Resource):
         """Create A Segment"""
 
         @knowledge_base_ns.doc("delete_segment")
-        def delete(self, knowledge_base_name, document_id, pk):
+        def delete(self, knowledge_base_id, pk):
             """Delete A Segment"""
-            app_id = request.app_id
-            es_client = ESClient(app_id=app_id, index_name=knowledge_base_name)
-            es_client.delete_es_document(pk)
+            knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
+            vector_store = VectorStoreFactory(
+                knowledgebase=knowledge_base,
+            )
+            vector_store.delete_by_ids([pk])
             return {"success": True}
 
         @knowledge_base_ns.doc("upsert_segment")
-        def put(self, knowledge_base_name, document_id, pk):
-            """Upsert A Segment"""
-            data = request.json
-            team_id = request.team_id
-            app_id = request.app_id
-            text = data.get("text")
-            if not text:
-                raise Exception("text is empty")
-            metadata = data.get("metadata")
-            collection = get_knowledge_base_or_fail(
-                app_id, team_id, knowledge_base_name
+        def put(self, knowledge_base_id, pk):
+            """Update A Segment"""
+            knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
+            vector_store = VectorStoreFactory(
+                knowledgebase=knowledge_base,
             )
-            embedding_model = collection.embedding_model
-            embedding = generate_embedding_of_model(embedding_model, [text])
-            es_client = ESClient(app_id=app_id, index_name=knowledge_base_name)
-            result = es_client.upsert_document(
-                pk=pk,
-                document={
-                    "page_content": text,
-                    "metadata": metadata,
-                    "embeddings": embedding[0],
-                },
+            data = request.json
+            text = data.get("text")
+            metadata = data.get("metadata", {})
+            vector_store.update_by_id(
+                pk, Document(page_content=text, metadata=metadata)
+            )
+            metadata_fields = metadata.keys()
+            MetadataFieldEntity.add_keys_if_not_exists(
+                knowledge_base_id, metadata_fields
             )
             return {"success": True}
-
-        @knowledge_base_ns.doc("get_segment")
-        def get(self, knowledge_base_name, document_id, pk):
-            """Get A Segment"""
-            app_id = request.app_id
-            es_client = ESClient(app_id=app_id, index_name=knowledge_base_name)
-            result = es_client.get_document(pk)
-            return result

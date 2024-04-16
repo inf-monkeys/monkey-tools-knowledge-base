@@ -29,6 +29,7 @@ def register(api):
             return jsonify({"list": [document.serialize() for document in documents]})
 
         def post(self, knowledge_base_id):
+            user_id = request.user_id
             """Create a new document in the knowledge base"""
             KnowledgeBaseEntity.get_by_id(knowledge_base_id)
 
@@ -82,6 +83,7 @@ def register(api):
                 {
                     "knowledge_base_id": knowledge_base_id,
                     "file_url": file_url,
+                    "user_id": user_id,
                     "filename": filename,
                     "oss_type": oss_type,
                     "oss_config": oss_config,

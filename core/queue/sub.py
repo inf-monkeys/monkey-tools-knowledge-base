@@ -51,9 +51,15 @@ class OSSReader:
                 self.oss_config.get("accessKeyId"),
                 self.oss_config.get("accessKeySecret"),
             )
-            if not endpoint or not region or not bucket_name or not accessKeyId or not accessKeySecret:
+            if (
+                not endpoint
+                or not region
+                or not bucket_name
+                or not accessKeyId
+                or not accessKeySecret
+            ):
                 raise ValueError("Missing TOS configuration")
-            
+
             return TOSClient(
                 endpoint,
                 region,
@@ -73,7 +79,12 @@ class OSSReader:
                 self.oss_config.get("accessKeyId"),
                 self.oss_config.get("accessKeySecret"),
             )
-            if not endpoint or not bucket_name or not accessKeyId or not accessKeySecret:
+            if (
+                not endpoint
+                or not bucket_name
+                or not accessKeyId
+                or not accessKeySecret
+            ):
                 raise ValueError("Missing AliyunOSS configuration")
             return AliyunOSSClient(
                 endpoint=endpoint,
@@ -134,6 +145,7 @@ def _split_documents(
 
 def _load_single_document(
     knowledge_base_id,
+    user_id,
     filename,
     file_url,
     file_path,
@@ -192,6 +204,7 @@ def _load_single_document(
                 segment.metadata["filename"] = filename
                 segment.metadata["created_at"] = int(time.time())
                 segment.metadata["document_id"] = document_id
+                segment.metadata["user_id"] = user_id
 
             vector_store.save_documents(splitted_segments)
 
@@ -217,6 +230,8 @@ def _load_single_document(
 def consume_task(task_data):
     task_id = task_data["task_id"]
     knowledge_base_id = task_data["knowledge_base_id"]
+
+    user_id = task_data["user_id"]
 
     # Split config
     chunk_size = task_data["chunk_size"]
@@ -253,6 +268,7 @@ def consume_task(task_data):
                 for file_path in files:
                     success = _load_single_document(
                         knowledge_base_id,
+                        user_id,
                         extract_filename(file_path),
                         file_url,
                         file_path,
@@ -293,6 +309,7 @@ def consume_task(task_data):
                     logger.info(f"Downloaded file to: {file_path}")
                     success = _load_single_document(
                         knowledge_base_id,
+                        user_id,
                         extract_filename(file),
                         signed_url,
                         file_path,
@@ -321,6 +338,7 @@ def consume_task(task_data):
                 on_prgress(TaskStatus.IN_PROGRESS, 0.1, "Downloaded file")
                 _load_single_document(
                     knowledge_base_id,
+                    user_id,
                     filename,
                     file_url,
                     file_path,
