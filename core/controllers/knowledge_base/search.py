@@ -201,8 +201,8 @@ def register(api):
                 ],
                 "x-monkey-tool-output": [
                     {
-                        "name": "result",
-                        "displayName": "相似性集合",
+                        "name": "hits",
+                        "displayName": "段落列表",
                         "type": "json",
                         "typeOptions": {
                             "multipleValues": True,
@@ -246,7 +246,10 @@ def register(api):
                 metadata_filter=metadata_filter,
                 top_k=top_k,
             )
-            return {"hits": [document.serialize() for document in documents]}
+            return {
+                "hits": [document.serialize() for document in documents],
+                "text": "\n\n".join([document.page_content for document in documents]),
+            }
 
     @knowledge_base_ns.route("/<string:knowledge_base_id>/hybird-search")
     @knowledge_base_ns.response(404, "Knowledge base not found")
