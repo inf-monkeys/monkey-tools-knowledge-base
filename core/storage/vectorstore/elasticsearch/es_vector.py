@@ -152,32 +152,8 @@ class ElasticsearchVectorStore(BaseVectorStore):
             self._client.delete(collection_name=self._collection_name, pks=ids)
 
     def delete(self) -> None:
-        alias = uuid4().hex
-        if self._client_config.secure:
-            uri = (
-                "https://"
-                + str(self._client_config.host)
-                + ":"
-                + str(self._client_config.port)
-            )
-        else:
-            uri = (
-                "http://"
-                + str(self._client_config.host)
-                + ":"
-                + str(self._client_config.port)
-            )
-        connections.connect(
-            alias=alias,
-            uri=uri,
-            user=self._client_config.user,
-            password=self._client_config.password,
-        )
-
-        from pymilvus import utility
-
-        if utility.has_collection(self._collection_name, using=alias):
-            utility.drop_collection(self._collection_name, None, using=alias)
+        # delete the entire index
+        self._client.indices.delete(index=self._collection_name)
 
     def text_exists(self, id: str) -> bool:
         alias = uuid4().hex

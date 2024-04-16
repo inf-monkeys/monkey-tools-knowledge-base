@@ -1,3 +1,4 @@
+from loguru import logger
 from core.middleware.db import db
 from flask import request, jsonify
 from flask_restx import Resource
@@ -98,51 +99,16 @@ def register(api):
     class KnowledgeBaseDetail(Resource):
         """Manage Knowledge Base"""
 
-        @knowledge_base_ns.doc("get_knowledge_base")
-        def get(self, knowledge_base_name):
-            """Fetch a given knowledge base"""
-            app_id = request.app_id
-            collection = get_knowledge_base_or_fail(app_id, knowledge_base_name)
-            return jsonify(collection.serialize())
-
         @knowledge_base_ns.doc("delete_knowledge_base")
         @knowledge_base_ns.response(204, "Knowledge base deleted")
-        def delete(self, knowledge_base_name):
+        def delete(self, knowledge_base_id):
             """Delete a knowledge base given its identifier"""
-            team_id = request.team_id
-            app_id = request.app_id
-            model = get_knowledge_base_table_by_prefix(app_id)
-            session.query(model).filter_by(
-                team_id=team_id, name=knowledge_base_name
-            ).update({"is_deleted": True})
-            session.commit()
-            es_client = ESClient(app_id=app_id, index_name=knowledge_base_name)
-            es_client.delete_index()
-            return {"success": True}
-
-        @knowledge_base_ns.doc("update_knowledge_base")
-        @knowledge_base_ns.response(201, "Knowledge base updated")
-        def put(self, knowledge_base_name):
-            """Update a knowledge base given its identifier"""
-            team_id = request.team_id
-            app_id = request.app_id
-            model = get_knowledge_base_table_by_prefix(app_id)
-            collection = get_knowledge_base_or_fail(
-                app_id, team_id, knowledge_base_name
-            )
-            data = request.json
-            description = data.get("description")
-            display_name = data.get("displayName")
-            icon_url = data.get("iconUrl")
-            session.query(model).filter_by(
-                name=knowledge_base_name, is_deleted=False
-            ).update(
-                {
-                    "description": description or collection.description,
-                    "display_name": display_name or collection.display_name,
-                    "icon_url": icon_url or collection.icon_url,
-                }
-            )
+            knowledge_base_entity = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
+            vector_store = VectorStoreFactory(knowledgebase=knowledge_base_entity)
+            try:
+                vector_store.delete()
+            except Exception as e:
+                logger.warning(f"Failed to delete vector store: {e}")
             return {"success": True}
 
     @knowledge_base_ns.route("/<string:knowledge_base_id>/copy")
@@ -152,38 +118,6 @@ def register(api):
         """Copy a Knowledge Base"""
 
         @knowledge_base_ns.doc("copy_knowledge_base")
-        def post(self, knowledge_base_name):
-            """Copy a collection"""
-            app_id = request.app_id
-            team_id = request.team_id
-            collection = get_knowledge_base_or_fail(
-                app_id, team_id, knowledge_base_name
-            )
-            data = request.json
-            team_id = data.get("teamId")
-            user_id = data.get("userId")
-
-            embedding_model = collection.embedding_model
-            dimension = collection.dimension
-            new_collection_name = generate_short_id()
-            description = collection.description
-
-            # 在 es 中创建 template
-            es_client = ESClient(app_id=app_id, index_name=new_collection_name)
-            es_client.create_es_index(dimension)
-            model = get_knowledge_base_table_by_prefix(app_id)
-            collection_entity = model(
-                id=generate_mongoid(),
-                creator_userId=user_id,
-                team_id=team_id,
-                name=new_collection_name,
-                display_name=collection.display_name,
-                description=description,
-                icon_url=collection.icon_url,
-                embedding_model=embedding_model,
-                dimension=dimension,
-                metadata_fields=collection.metadata_fields,
-            )
-            session.add(collection_entity)
-            session.commit()
-            return {"name": new_collection_name}
+        def post(self, knowledge_base_id):
+            """Copy a knowledge base given its identifier"""
+            pass
