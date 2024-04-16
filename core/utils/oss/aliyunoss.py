@@ -17,7 +17,7 @@ class AliyunOSSClient:
                 break
         return files
 
-    def read_dir(self, prefix):
+    def _read_dir(self, prefix):
         """
         列举对象
         :param prefix: 路径
@@ -32,7 +32,7 @@ class AliyunOSSClient:
         url = self.bucket.sign_url('GET', object_name, expires)
         return url
 
-    def is_file_match_condition(self, file, fileExtensions, excludeFileRegex):
+    def _is_file_match_condition(self, file, fileExtensions, excludeFileRegex):
         # 如果后缀不在合法的后缀中，不符合
         if fileExtensions:
             match_extension_result = [
@@ -47,10 +47,10 @@ class AliyunOSSClient:
 
         return True
 
-    def get_all_files_in_base_folder(self, base_folder, fileExtensions=None, excludeFileRegex=None):
-        files = self.read_dir(base_folder)
+    def read_base_folder(self, base_folder, fileExtensions=None, excludeFileRegex=None):
+        files = self._read_dir(base_folder)
         valid_files = []
         for file in files:
-            if self.is_file_match_condition(file, fileExtensions, excludeFileRegex):
+            if self._is_file_match_condition(file, fileExtensions, excludeFileRegex):
                 valid_files.append(file)
         return valid_files

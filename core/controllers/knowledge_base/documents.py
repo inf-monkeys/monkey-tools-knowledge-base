@@ -35,6 +35,14 @@ def register(api):
             data = request.json
             file_url = data.get("fileURL")
             filename = data.get("fileName")
+            oss_type = data.get("ossType")
+            oss_config = data.get("ossConfig", {})
+
+            if not (file_url and filename) and not (oss_type and oss_config):
+                raise ValueError(
+                    "fileURL and fileName or ossType and ossConfig are required"
+                )
+
             splitter_type = data.get("splitterType")
             pre_process_rules = data.get("preProcessRules", [])
             jqSchema = data.get("jqSchema", {})
@@ -75,6 +83,8 @@ def register(api):
                     "knowledge_base_id": knowledge_base_id,
                     "file_url": file_url,
                     "filename": filename,
+                    "oss_type": oss_type,
+                    "oss_config": oss_config,
                     "task_id": task_id,
                     "chunk_size": chunk_size,
                     "chunk_overlap": chunk_overlap,

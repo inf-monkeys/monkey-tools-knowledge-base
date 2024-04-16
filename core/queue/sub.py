@@ -18,13 +18,93 @@ from app import app
 from core.models.task import TaskEntity, TaskStatus
 from core.models.document import DocumentEntity
 from core.utils.zip import extract_files_from_zip
+from core.utils.oss.aliyunoss import AliyunOSSClient
+from core.utils.oss.tos import TOSClient
 
 
 def _download_file(file_url):
     return download_file(file_url)
 
 
-def _extract(
+def _extract_zip(file_url):
+    return extract_files_from_zip(file_url)
+
+
+class OSSReader:
+    def __init__(self, oss_type, oss_config) -> None:
+        self.oss_type = oss_type
+        self.oss_config = oss_config
+        self.client = self._init_client()
+
+    def _init_client(self):
+        if self.oss_type == "TOS":
+            (
+                endpoint,
+                region,
+                bucket_name,
+                accessKeyId,
+                accessKeySecret,
+            ) = (
+                self.oss_config.get("endpoint"),
+                self.oss_config.get("region"),
+                self.oss_config.get("bucketName"),
+                self.oss_config.get("accessKeyId"),
+                self.oss_config.get("accessKeySecret"),
+            )
+            if not endpoint or not region or not bucket_name or not accessKeyId or not accessKeySecret:
+                raise ValueError("Missing TOS configuration")
+            
+            return TOSClient(
+                endpoint,
+                region,
+                bucket_name,
+                accessKeyId,
+                accessKeySecret,
+            )
+        elif self.oss_type == "ALIYUNOSS":
+            (
+                endpoint,
+                bucket_name,
+                accessKeyId,
+                accessKeySecret,
+            ) = (
+                self.oss_config.get("endpoint"),
+                self.oss_config.get("bucketName"),
+                self.oss_config.get("accessKeyId"),
+                self.oss_config.get("accessKeySecret"),
+            )
+            if not endpoint or not bucket_name or not accessKeyId or not accessKeySecret:
+                raise ValueError("Missing AliyunOSS configuration")
+            return AliyunOSSClient(
+                endpoint=endpoint,
+                bucket_name=bucket_name,
+                access_key=accessKeyId,
+                secret_key=accessKeySecret,
+            )
+        else:
+            raise ValueError(f"Unknown oss type: {self.oss_type}")
+
+    def read_base_folder(self):
+        (
+            baseFolder,
+            fileExtensions,
+            excludeFileRegex,
+        ) = (
+            self.oss_config.get("baseFolder"),
+            self.oss_config.get("fileExtensions"),
+            self.oss_config.get("excludeFileRegex"),
+        )
+        if fileExtensions:
+            fileExtensions = fileExtensions.split(",")
+        return self.client.read_base_folder(
+            baseFolder, fileExtensions, excludeFileRegex
+        )
+
+    def get_signed_url(self, key, expires=3600):
+        return self.client.get_signed_url(key, expires)
+
+
+def _extract_documents(
     file_path: str,
     pre_process_rules,
     jqSchema,
@@ -36,7 +116,7 @@ def _extract(
     )
 
 
-def _split(
+def _split_documents(
     documents: List[Document],
     chunk_size,
     chunk_overlap,
@@ -80,7 +160,7 @@ def _load_single_document(
             )
             db.session.add(document_entity)
 
-            documents = _extract(
+            documents = _extract_documents(
                 file_path,
                 pre_process_rules=pre_process_rules,
                 jqSchema=jqSchema,
@@ -90,7 +170,7 @@ def _load_single_document(
                 TaskStatus.IN_PROGRESS, 0.3, f"Extracted {len(documents)} documents"
             )
 
-            splitted_segments = _split(
+            splitted_segments = _split_documents(
                 documents,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
@@ -135,18 +215,27 @@ def _load_single_document(
 
 
 def consume_task(task_data):
-    knowledge_base_id = task_data["knowledge_base_id"]
-    file_url = task_data["file_url"]
-    filename = task_data["filename"]
     task_id = task_data["task_id"]
+    knowledge_base_id = task_data["knowledge_base_id"]
+
+    # Split config
     chunk_size = task_data["chunk_size"]
     chunk_overlap = task_data["chunk_overlap"]
     separator = task_data["separator"]
     pre_process_rules = task_data["pre_process_rules"]
     jqSchema = task_data["jqSchema"]
 
+    # File config
+    file_url = task_data["file_url"]
+    filename = task_data["filename"]
+
+    # Oss config
+    oss_type = task_data["oss_type"]
+    oss_config = task_data["oss_config"]
+
     with app.app_context():
         try:
+
             def on_prgress(status, progress, latest_message):
                 TaskEntity.update_progress_by_id(
                     task_id,
@@ -155,8 +244,8 @@ def consume_task(task_data):
                     latest_message=latest_message,
                 )
 
-            if file_url.endswith(".zip"):
-                extract_to, files = extract_files_from_zip(file_url)
+            if file_url and file_url.endswith(".zip"):
+                extract_to, files = _extract_zip(file_url)
                 on_prgress(TaskStatus.IN_PROGRESS, 0.1, "Downloaded file And Extracted")
                 succeed = 0
                 failed = 0
@@ -187,8 +276,47 @@ def consume_task(task_data):
                     )
                 on_prgress(TaskStatus.COMPLETED, 1, "Loaded all documents")
                 shutil.rmtree(extract_to)
+            elif oss_type and oss_config:
+                oss_reader = OSSReader(oss_type, oss_config)
+                files = oss_reader.read_base_folder()
+                on_prgress(
+                    TaskStatus.IN_PROGRESS, 0.1, f"Read {len(files)} files in OSS"
+                )
+                succeed = 0
+                failed = 0
+                total = len(files)
+                for file in files:
+                    logger.info(f"Processing file: {file}")
+                    signed_url = oss_reader.get_signed_url(file)
+                    logger.info(f"Download file from: {signed_url}")
+                    file_path = _download_file(signed_url)
+                    logger.info(f"Downloaded file to: {file_path}")
+                    success = _load_single_document(
+                        knowledge_base_id,
+                        extract_filename(file),
+                        signed_url,
+                        file_path,
+                        pre_process_rules,
+                        jqSchema,
+                        chunk_size,
+                        chunk_overlap,
+                        separator,
+                        lambda status, progress, latest_message: None,
+                    )
+                    if success:
+                        succeed += 1
+                    else:
+                        failed += 1
 
-            else:
+                    progress = 0.1 + 0.9 * ((succeed + failed) / total)
+                    on_prgress(
+                        TaskStatus.IN_PROGRESS,
+                        progress,
+                        f"Succeed {succeed}/{total}, Failed {failed}/{total}",
+                    )
+                on_prgress(TaskStatus.COMPLETED, 1, "Loaded all documents")
+
+            elif file_url:
                 file_path = _download_file(file_url)
                 on_prgress(TaskStatus.IN_PROGRESS, 0.1, "Downloaded file")
                 _load_single_document(
@@ -203,6 +331,9 @@ def consume_task(task_data):
                     separator,
                     on_prgress,
                 )
+
+            else:
+                raise ValueError("Invalid task data")
         except Exception as e:
             TaskEntity.update_progress_by_id(
                 task_id,
