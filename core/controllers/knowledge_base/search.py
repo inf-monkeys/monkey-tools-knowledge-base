@@ -166,7 +166,7 @@ def register(api):
                 "x-monkey-tool-input": [
                     {
                         "displayName": "文本数据库",
-                        "name": "knowledgeBaseName",
+                        "name": "knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "knowledge-base"},
                         "default": "",
@@ -174,13 +174,13 @@ def register(api):
                     },
                     {
                         "displayName": "关键词",
-                        "name": "question",
+                        "name": "query",
                         "type": "string",
                         "default": "",
                         "required": True,
                     },
                     {
-                        "displayName": "TopK",
+                        "displayName": "topK",
                         "name": "topK",
                         "type": "number",
                         "default": 3,

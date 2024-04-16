@@ -42,7 +42,11 @@ class TaskEntity(db.Model):
 
     @staticmethod
     def find_by_knowledge_base_id(knowledge_base_id: str):
-        return TaskEntity.query.filter_by(knowledge_base_id=knowledge_base_id).order_by(TaskEntity.created_at.desc()).all()
+        return (
+            TaskEntity.query.filter_by(knowledge_base_id=knowledge_base_id)
+            .order_by(TaskEntity.created_at.desc())
+            .all()
+        )
 
     @staticmethod
     def get_by_id(id: str):
@@ -50,11 +54,15 @@ class TaskEntity(db.Model):
 
     @staticmethod
     def update_progress_by_id(
-        task_id: str, status: TaskStatus, progress: int, latest_message: str
+        task_id: str,
+        status: TaskStatus,
+        latest_message: str,
+        progress: int = None,
     ):
         task = TaskEntity.query.filter_by(id=task_id).first()
         task.status = status.value
-        task.progress = progress
+        if progress:
+            task.progress = progress
         task.latest_message = latest_message
         db.session.commit()
         return task

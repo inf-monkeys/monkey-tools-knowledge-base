@@ -179,7 +179,7 @@ def _load_single_document(
             )
 
             on_prgress(
-                TaskStatus.IN_PROGRESS, 0.3, f"Extracted {len(documents)} documents"
+                TaskStatus.IN_PROGRESS, f"Extracted {len(documents)} documents", 0.3
             )
 
             splitted_segments = _split_documents(
@@ -192,8 +192,8 @@ def _load_single_document(
 
             on_prgress(
                 TaskStatus.IN_PROGRESS,
-                0.5,
                 f"Splitted to {len(splitted_segments)} segments",
+                0.5,
             )
 
             for i, segment in enumerate(splitted_segments):
@@ -208,7 +208,7 @@ def _load_single_document(
 
             vector_store.save_documents(splitted_segments)
 
-            on_prgress(TaskStatus.COMPLETED, 1, "Loaded to vector store")
+            on_prgress(TaskStatus.COMPLETED, "Loaded to vector store", 1)
             DocumentEntity.update_status_by_id(
                 document_id,
                 index_status=TaskStatus.COMPLETED,
@@ -216,7 +216,7 @@ def _load_single_document(
             )
             return True
         except Exception as e:
-            on_prgress(TaskStatus.FAILED, 1, f"{str(e)}")
+            on_prgress(TaskStatus.FAILED, f"{str(e)}")
             DocumentEntity.update_status_by_id(
                 document_id,
                 index_status=TaskStatus.FAILED,
@@ -251,7 +251,7 @@ def consume_task(task_data):
     with app.app_context():
         try:
 
-            def on_prgress(status, progress, latest_message):
+            def on_prgress(status, latest_message, progress=None):
                 TaskEntity.update_progress_by_id(
                     task_id,
                     status=status,
@@ -261,7 +261,7 @@ def consume_task(task_data):
 
             if file_url and file_url.endswith(".zip"):
                 extract_to, files = _extract_zip(file_url)
-                on_prgress(TaskStatus.IN_PROGRESS, 0.1, "Downloaded file And Extracted")
+                on_prgress(TaskStatus.IN_PROGRESS, "Downloaded file And Extracted", 0.1)
                 succeed = 0
                 failed = 0
                 total = len(files)
@@ -287,16 +287,16 @@ def consume_task(task_data):
                     progress = 0.1 + 0.9 * ((succeed + failed) / total)
                     on_prgress(
                         TaskStatus.IN_PROGRESS,
-                        progress,
                         f"Succeed {succeed}/{total}, Failed {failed}/{total}",
+                        progress,
                     )
-                on_prgress(TaskStatus.COMPLETED, 1, "Loaded all documents")
+                on_prgress(TaskStatus.COMPLETED, "Loaded all documents", 1)
                 shutil.rmtree(extract_to)
             elif oss_type and oss_config:
                 oss_reader = OSSReader(oss_type, oss_config)
                 files = oss_reader.read_base_folder()
                 on_prgress(
-                    TaskStatus.IN_PROGRESS, 0.1, f"Read {len(files)} files in OSS"
+                    TaskStatus.IN_PROGRESS, f"Read {len(files)} files in OSS", 0.1
                 )
                 succeed = 0
                 failed = 0
@@ -328,14 +328,14 @@ def consume_task(task_data):
                     progress = 0.1 + 0.9 * ((succeed + failed) / total)
                     on_prgress(
                         TaskStatus.IN_PROGRESS,
-                        progress,
                         f"Succeed {succeed}/{total}, Failed {failed}/{total}",
+                        progress,
                     )
-                on_prgress(TaskStatus.COMPLETED, 1, "Loaded all documents")
+                on_prgress(TaskStatus.COMPLETED, "Loaded all documents", 1)
 
             elif file_url:
                 file_path = _download_file(file_url)
-                on_prgress(TaskStatus.IN_PROGRESS, 0.1, "Downloaded file")
+                on_prgress(TaskStatus.IN_PROGRESS, "Downloaded file", 0.1)
                 _load_single_document(
                     knowledge_base_id,
                     user_id,
@@ -356,7 +356,6 @@ def consume_task(task_data):
             TaskEntity.update_progress_by_id(
                 task_id,
                 status=TaskStatus.FAILED,
-                progress=1,
                 latest_message=f"Failed to process task: {str(e)}",
             )
             logger.error(f"Failed to process task: {task_data}")
