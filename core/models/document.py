@@ -12,12 +12,21 @@ from core.models.task import TaskStatus
 class Document(BaseModel):
     """Class for storing a piece of text and associated metadata."""
 
+    pk: str = None
+
     page_content: str
 
     """Arbitrary metadata about the page content (e.g., source, relationships to other
         documents, etc.).
     """
     metadata: Optional[dict] = Field(default_factory=dict)
+
+    def serialize(self):
+        return {
+            "page_content": self.page_content,
+            "metadata": self.metadata,
+            "pk": self.pk,
+        }
 
 
 class DocumentEntity(db.Model):
@@ -50,7 +59,11 @@ class DocumentEntity(db.Model):
 
     @staticmethod
     def find_by_knowledge_base_id(knowledge_base_id: str):
-        return DocumentEntity.query.filter_by(knowledge_base_id=knowledge_base_id).order_by(DocumentEntity.created_at.desc()).all()
+        return (
+            DocumentEntity.query.filter_by(knowledge_base_id=knowledge_base_id)
+            .order_by(DocumentEntity.created_at.desc())
+            .all()
+        )
 
     @staticmethod
     def get_by_id(id: str):

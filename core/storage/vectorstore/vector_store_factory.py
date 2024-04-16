@@ -133,7 +133,9 @@ class VectorStoreFactory:
         self._vector_processor.delete_by_metadata_field(key, value)
 
     def search_by_vector(self, query: str, **kwargs: Any) -> list[Document]:
-        query_vector = self._embeddings.embed_query(query)
+        query_vector = generate_embedding_of_model(
+            self._knowledgebase.embedding_model, [query]
+        )[0]
         return self._vector_processor.search_by_vector(query_vector, **kwargs)
 
     def search_by_full_text(self, query: str, **kwargs: Any) -> list[Document]:

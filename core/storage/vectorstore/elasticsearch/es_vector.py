@@ -218,29 +218,34 @@ class ElasticsearchVectorStore(BaseVectorStore):
     def search_by_vector(
         self, query_vector: list[float], **kwargs: Any
     ) -> list[Document]:
+        must_statements = []
+        metadata_filter = kwargs.get("metadata_filter", None)
+        top_k = kwargs.get("top_k", 3)
+        if metadata_filter:
+            for key, value in metadata_filter.items():
+                must_statements.append({"term": {f"metadata.{key}.keyword": value}})
 
-        # Set search parameters.
-        results = self._client.search(
-            collection_name=self._collection_name,
-            data=[query_vector],
-            limit=kwargs.get("top_k", 4),
-            output_fields=[Field.CONTENT_KEY.value, Field.METADATA_KEY.value],
-        )
-        # Organize results.
-        docs = []
-        for result in results[0]:
-            metadata = result["entity"].get(Field.METADATA_KEY.value)
-            metadata["score"] = result["distance"]
-            score_threshold = (
-                kwargs.get("score_threshold") if kwargs.get("score_threshold") else 0.0
+        search_body = {
+            "knn": {
+                "field": "embeddings",
+                "query_vector": query_vector,
+                "k": top_k,
+                "num_candidates": self._client_config.knn_num_candidates,
+            },
+            "fields": ["page_content", "metadata"],
+        }
+        if len(must_statements) > 0:
+            search_body["query"] = {"bool": {"must": must_statements}}
+        response = self._client.search(index=self._collection_name, body=search_body)
+
+        return [
+            Document(
+                pk=hit["_id"],
+                page_content=hit["_source"]["page_content"],
+                metadata=hit["_source"]["metadata"],
             )
-            if result["distance"] > score_threshold:
-                doc = Document(
-                    page_content=result["entity"].get(Field.CONTENT_KEY.value),
-                    metadata=metadata,
-                )
-                docs.append(doc)
-        return docs
+            for hit in response["hits"]["hits"]
+        ]
 
     def search_by_full_text(self, query: str, **kwargs: Any) -> list[Document]:
         """Full Text Search
@@ -276,7 +281,14 @@ class ElasticsearchVectorStore(BaseVectorStore):
                 ),
             )
 
-            return response["hits"]["hits"]
+            return [
+                Document(
+                    pk=hit["_id"],
+                    page_content=hit["_source"]["page_content"],
+                    metadata=hit["_source"]["metadata"],
+                )
+                for hit in response["hits"]["hits"]
+            ]
         except elasticsearch.NotFoundError:
             return []
 

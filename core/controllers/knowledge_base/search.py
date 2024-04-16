@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, jsonify
 from flask_restx import Resource
 from core.utils.embedding import (
     generate_embedding_of_model,
@@ -137,20 +137,19 @@ def register(api):
             data = request.json
             query = data.get("query", None)
             knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
-
             vector_store = VectorStoreFactory(knowledgebase=knowledge_base)
             from_ = data.get("from", 0)
             size = data.get("size", 30)
             metadata_filter = data.get("metadataFilter", None)
             sort_by_created_at = data.get("sortByCreatedAt", False)
-            hits = vector_store.search_by_full_text(
+            documents = vector_store.search_by_full_text(
                 query,
                 metadata_filter=metadata_filter,
                 from_=from_,
                 size=size,
                 sort_by_created_at=sort_by_created_at,
             )
-            return {"hits": hits}
+            return {"hits": [document.serialize() for document in documents]}
 
     @knowledge_base_ns.route("/<string:knowledge_base_id>/vector-search")
     @knowledge_base_ns.response(404, "Knowledge base not found")
@@ -232,35 +231,22 @@ def register(api):
                 },
             }
         )
-        def post(self, knowledgeBaseName):
+        def post(self, knowledge_base_id):
             """Generate query embeddings and search for the text chunk most similar to its vector representation."""
             input_data = request.json
-            team_id = request.team_id
+            knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
+            vector_store = VectorStoreFactory(knowledgebase=knowledge_base)
             query = input_data.get("query")
             if not query:
                 raise Exception("query is empty")
             top_k = input_data.get("topK", 3)
             metadata_filter = input_data.get("metadata_filter", None)
-
-            app_id = request.app_id
-            collection = get_knowledge_base_or_fail(app_id, team_id, knowledgeBaseName)
-
-            es_client = ESClient(app_id=app_id, index_name=knowledgeBaseName)
-            embedding_model = collection.embedding_model
-            embedding = generate_embedding_of_model(embedding_model, query)
-
-            data = es_client.vector_search(embedding, top_k, metadata_filter)
-            data = [
-                {
-                    "page_content": item["_source"]["page_content"],
-                    "metadata": item["_source"]["metadata"],
-                }
-                for item in data
-            ]
-            texts = [item["page_content"] for item in data]
-            text = "\n".join(texts)
-
-            return {"result": data, "text": text}
+            documents = vector_store.search_by_vector(
+                query=query,
+                metadata_filter=metadata_filter,
+                top_k=top_k,
+            )
+            return {"hits": [document.serialize() for document in documents]}
 
     @knowledge_base_ns.route("/<string:knowledge_base_id>/hybird-search")
     @knowledge_base_ns.response(404, "Knowledge base not found")
