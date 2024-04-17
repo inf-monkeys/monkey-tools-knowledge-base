@@ -11,13 +11,13 @@ class BaseVectorStore(ABC):
         self._collection_name = collection_name
 
     @abstractmethod
-    def init_collection(self, **kwargs):
+    def create_collection(self, **kwargs):
         pass
 
     @abstractmethod
-    def save_documents(
+    def add_texts(
         self,
-        documents: list[Document],
+        texts: list[Document],
         embeddings: list[list[float]],
         **kwargs,
     ):

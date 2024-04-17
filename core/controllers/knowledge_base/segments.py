@@ -61,7 +61,7 @@ def register(api):
             vector_store = VectorStoreFactory(
                 knowledgebase=knowledge_base,
             )
-            vector_store.save_documents(text_list)
+            vector_store.add_texts(text_list)
 
             metadata_fields = metadata.keys()
             MetadataFieldEntity.add_keys_if_not_exists(

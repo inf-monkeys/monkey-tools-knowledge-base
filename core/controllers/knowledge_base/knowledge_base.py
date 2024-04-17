@@ -85,7 +85,7 @@ def register(api):
 
             # Init vector collection if needed
             vector_store = VectorStoreFactory(knowledgebase=knowledge_base_entity)
-            vector_store.init_collection(dimension=dimension)
+            vector_store.create_collection(dimension=dimension)
 
             return jsonify(knowledge_base_entity.serialize())
 

@@ -206,7 +206,7 @@ def _load_single_document(
                 segment.metadata["document_id"] = document_id
                 segment.metadata["user_id"] = user_id
 
-            vector_store.save_documents(splitted_segments)
+            vector_store.add_texts(splitted_segments)
 
             on_prgress(TaskStatus.COMPLETED, "Loaded to vector store", 1)
             DocumentEntity.update_status_by_id(

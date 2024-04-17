@@ -112,14 +112,14 @@ class VectorStoreFactory:
         else:
             raise ValueError(f"Vector store {vector_type} is not supported.")
 
-    def save_documents(self, documents: list[Document], **kwargs):
+    def add_texts(self, documents: list[Document], **kwargs):
         if kwargs.get("duplicate_check", False):
             documents = self._filter_duplicate_texts(documents)
         embeddings = generate_embedding_of_model(
             self._knowledgebase.embedding_model,
             [document.page_content for document in documents],
         )
-        self._vector_processor.save_documents(
+        self._vector_processor.add_texts(
             texts=documents, embeddings=embeddings, **kwargs
         )
 
@@ -147,8 +147,8 @@ class VectorStoreFactory:
     def delete(self) -> None:
         self._vector_processor.delete()
 
-    def init_collection(self, **kwargs):
-        return self._vector_processor.init_collection(**kwargs)
+    def create_collection(self, **kwargs):
+        return self._vector_processor.create_collection(**kwargs)
 
     def _filter_duplicate_texts(self, texts: list[Document]) -> list[Document]:
         for text in texts:

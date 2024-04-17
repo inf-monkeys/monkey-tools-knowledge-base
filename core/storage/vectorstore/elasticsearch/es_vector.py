@@ -51,7 +51,7 @@ class ElasticsearchVectorStore(BaseVectorStore):
         self._consistency_level = "Session"
         self._fields = []
 
-    def init_collection(self, **kwargs) -> BaseVectorStore:
+    def create_collection(self, **kwargs) -> BaseVectorStore:
         dimension = kwargs.get("dimension")
         self._client.indices.create(
             index=self._collection_name,
@@ -95,7 +95,7 @@ class ElasticsearchVectorStore(BaseVectorStore):
                 traceback.print_exc()
                 raise Exception("Elasticsearch connection error")
 
-    def save_documents(
+    def add_texts(
         self,
         texts: list[Document],
         embeddings: list[list[float]],
