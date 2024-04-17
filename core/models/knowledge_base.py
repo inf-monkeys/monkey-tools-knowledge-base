@@ -18,7 +18,6 @@ class KnowledgeBaseEntity(db.Model):
     updated_at = db.Column(
         db.DateTime, nullable=False, server_default=db.text("CURRENT_TIMESTAMP(0)")
     )
-    is_deleted = Column(Boolean, default=False)
     embedding_model = Column(String)
     dimension = Column(Integer)
 
@@ -40,3 +39,12 @@ class KnowledgeBaseEntity(db.Model):
         if not knowledge_base:
             raise ValueError(f"Knowledge base with id {id} not found")
         return knowledge_base
+
+    @staticmethod
+    def delete_by_id(id: str):
+        knowledge_base = KnowledgeBaseEntity.query.filter_by(id=id).first()
+        if not knowledge_base:
+            return False
+        db.session.delete(knowledge_base)
+        db.session.commit()
+        return True

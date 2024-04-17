@@ -6,7 +6,7 @@ from . import tasks
 from . import metadata_field
 
 
-def regieter(api):
+def register(api):
     documents.register(api)
     knowledge_base.register(api)
     segments.register(api)

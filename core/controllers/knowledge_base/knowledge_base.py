@@ -4,7 +4,6 @@ from flask import request, jsonify
 from flask_restx import Resource
 from core.utils.embedding import (
     get_dimension_by_embedding_model,
-    SUPPORTED_EMBEDDING_MODELS,
 )
 from core.models.knowledge_base import KnowledgeBaseEntity
 import uuid
@@ -21,54 +20,6 @@ def register(api):
         """Create Knowledge Base"""
 
         @knowledge_base_ns.doc("create_knowledge_base")
-        @knowledge_base_ns.vendor(
-            {
-                "x-monkey-tool-name": "create_knowledge_base",
-                "x-monkey-tool-categories": ["query", "db"],
-                "x-monkey-tool-display-name": "创建知识库",
-                "x-monkey-tool-description": "创建知识库",
-                "x-monkey-tool-icon": "emoji:💿:#e58c3a",
-                "x-monkey-tool-input": [
-                    {
-                        "displayName": "名称",
-                        "name": "displayName",
-                        "type": "string",
-                        "required": True,
-                    },
-                    {
-                        "displayName": "图标",
-                        "name": "iconUrl",
-                        "type": "string",
-                        "required": False,
-                    },
-                    {
-                        "displayName": "描述信息",
-                        "name": "description",
-                        "type": "string",
-                        "required": False,
-                    },
-                    {
-                        "displayName": "Embedding 模型",
-                        "name": "embeddingModel",
-                        "type": "options",
-                        "options": [
-                            {"name": item.get("name"), "value": item.get("name")}
-                            for item in SUPPORTED_EMBEDDING_MODELS
-                        ],
-                    },
-                ],
-                "x-monkey-tool-output": [
-                    {
-                        "name": "name",
-                        "displayName": "知识库唯一标志",
-                        "type": "string",
-                    },
-                ],
-                "x-monkey-tool-extra": {
-                    "estimateTime": 5,
-                },
-            }
-        )
         def post(self):
             """Create a new Collection"""
             data = request.json
@@ -103,6 +54,7 @@ def register(api):
             vector_store = VectorStoreFactory(knowledgebase=knowledge_base_entity)
             try:
                 vector_store.delete()
+                KnowledgeBaseEntity.delete_by_id(knowledge_base_id)
             except Exception as e:
                 logger.warning(f"Failed to delete vector store: {e}")
             return {"success": True}
