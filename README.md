@@ -1,8 +1,6 @@
 # Monkey Tools for Knowledge Base
 
 [![Release Notes](https://img.shields.io/github/release/inf-monkeys/monkey-tools-knowledge-base)](https://github.com/inf-monkeys/monkey-tools-knowledge-base/releases)
-[![Discord](https://img.shields.io/discord/1087698854775881778?label=Discord&logo=discord)](https://discord.gg/jbaHfsRVBW)
-[![Twitter Follow](https://img.shields.io/twitter/follow/FlowiseAI?style=social)](https://twitter.com/FlowiseAI)
 [![GitHub star chart](https://img.shields.io/github/stars/inf-monkeys/monkey-tools-knowledge-base?style=social)](https://star-history.com/#inf-monkeys/monkey-tools-knowledge-base)
 [![GitHub fork](https://img.shields.io/github/forks/inf-monkeys/monkey-tools-knowledge-base?style=social)](https://github.com/inf-monkeys/monkey-tools-knowledge-base/fork)
 
