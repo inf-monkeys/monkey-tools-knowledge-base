@@ -1,12 +1,12 @@
-name: Build Prod
+name: Publish Docker image for Huawei Registry for CPU
 
 on:
-  push:
-    branches: ['main']
+  release:
+    types: [published]
 
 jobs:
   build:
-    name: Build Prod
+    name: Push Docker image to Huawei SWR Docker Hub
     runs-on: ubuntu-latest
 
     steps:
@@ -27,12 +27,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3 # 抽取项目信息，主要是镜像的tag
         with:
-          images: swr.ap-southeast-1.myhuaweicloud.com/storyboard/monkey-tools-text-collections
+          images: swr.ap-southeast-1.myhuaweicloud.com/storyboard/monkey-tools-video
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4 # docker build & push
         with:
           context: .
+          file: ./Dockerfile-cpu
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
