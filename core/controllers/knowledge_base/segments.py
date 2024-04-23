@@ -2,12 +2,8 @@ import time
 from typing import List
 from flask import request
 from flask_restx import Resource
-from core.es import ESClient
 from core.models.document import Document
 from core.models.metadata_field import MetadataFieldEntity
-from core.utils.embedding import (
-    generate_embedding_of_model,
-)
 from core.models.knowledge_base import KnowledgeBaseEntity
 from core.storage.vectorstore.vector_store_factory import VectorStoreFactory
 
