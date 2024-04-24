@@ -27,7 +27,7 @@ def upgrade():
     sa.Column('failed_message', sa.String(), nullable=True),
     sa.Column('filename', sa.String(), nullable=True),
     sa.Column('file_url', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id', name='document_pkey')
+    sa.PrimaryKeyConstraint('id', name='knowledge_base_document_pkey')
     )
     op.create_table('monkey_tools_knowledge_base_metadata_fields',
     sa.Column('id', postgresql.UUID(), nullable=False),
@@ -35,7 +35,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP(0)'), nullable=False),
     sa.Column('knowledge_base_id', postgresql.UUID(), nullable=True),
     sa.Column('key', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id', name='metadata_fields_pkey')
+    sa.PrimaryKeyConstraint('id', name='knowledge_base_metadata_fields_pkey')
     )
     op.create_table('monkey_tools_knowledge_base_tasks',
     sa.Column('id', postgresql.UUID(), nullable=False),
@@ -45,7 +45,7 @@ def upgrade():
     sa.Column('status', sa.String(), nullable=True),
     sa.Column('progress', sa.DECIMAL(), nullable=True),
     sa.Column('latest_message', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id', name='task_pkey')
+    sa.PrimaryKeyConstraint('id', name='knowledge_base_task_pkey')
     )
     op.create_table('monkey_tools_knowledge_bases',
     sa.Column('id', postgresql.UUID(), nullable=False),
@@ -60,7 +60,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP(0)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP(0)'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=True),
-    sa.PrimaryKeyConstraint('id', name='sql_knowledge_base_pkey')
+    sa.PrimaryKeyConstraint('id', name='knowledge_base_sql_knowledge_base_pkey')
     )
     # ### end Alembic commands ###
 

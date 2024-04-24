@@ -27,7 +27,7 @@ built_in_fields = [
 
 class MetadataFieldEntity(db.Model):
     __tablename__ = f"monkey_tools_knowledge_base_metadata_fields"
-    __table_args__ = (db.PrimaryKeyConstraint("id", name="metadata_fields_pkey"),)
+    __table_args__ = (db.PrimaryKeyConstraint("id", name="knowledge_base_metadata_fields_pkey"),)
     id = db.Column(UUID)
     created_at = db.Column(
         db.DateTime, nullable=False, server_default=db.text("CURRENT_TIMESTAMP(0)")

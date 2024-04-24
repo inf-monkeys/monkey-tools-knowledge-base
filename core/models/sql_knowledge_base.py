@@ -8,7 +8,7 @@ from core.middleware.db import db
 
 class SqlKnowledgeBaseEntity(db.Model):
     __tablename__ = f"monkey_tools_knowledge_bases_sql_knowledge_bases"
-    __table_args__ = (db.PrimaryKeyConstraint("id", name="sql_knowledge_base_pkey"),)
+    __table_args__ = (db.PrimaryKeyConstraint("id", name="knowledge_base_sql_knowledge_base_pkey"),)
     id = db.Column(UUID)
     created_at = db.Column(
         db.DateTime, nullable=False, server_default=db.text("CURRENT_TIMESTAMP(0)")
