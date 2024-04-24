@@ -1,7 +1,6 @@
 from FlagEmbedding import FlagModel
 import torch
 import os
-from core.utils import ROOT_FOLDER
 from core.config import MODELS_FOLDER, embeddings_config
 
 MODEL_MAP = {}
@@ -27,6 +26,8 @@ def generate_embedding_of_model(model_name, q):
     torch.cuda.empty_cache()
     return embeddings
 
+def remove_model_name_prefix(model_name):
+    return model_name.split("/")[-1]
 
 SUPPORTED_EMBEDDING_MODELS = [
     {
@@ -35,7 +36,7 @@ SUPPORTED_EMBEDDING_MODELS = [
         "dimension": item["dimension"],
         "enabled": item.get("enabled", True),
         "model_path": item.get("modelPath")
-        or os.path.join(MODELS_FOLDER, item["name"]),
+        or os.path.join(MODELS_FOLDER, remove_model_name_prefix(item["name"])),
     }
     for item in embeddings_config.get("models", [])
 ]

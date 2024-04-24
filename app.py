@@ -16,6 +16,7 @@ from core.config import database_config
 from core.middleware import db
 from core.models import load_models
 from core.controllers import register_controllers
+from flask_migrate import Migrate
 
 app = Flask(__name__)
 database_url = database_config.get("url", "sqlite:///data.sqlite")
@@ -25,13 +26,12 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size": pool_config.get("pool_size", 30),
     "pool_recycle": pool_config.get("pool_recycle", 3600),
 }
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 load_models()
 
 db.init_app(app)
-
-with app.app_context():
-    print("Creating all tables")
-    db.db.create_all()
+migrate = Migrate(app, db.db)
 
 api = Api(
     app,
