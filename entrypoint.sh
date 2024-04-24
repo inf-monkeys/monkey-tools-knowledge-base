@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# 启动 worker
+# Run db migrations
+
+flask db upgrade &
+
+# Run worker
 python worker.py &
 
-# 启动 app
+# Run app
 python app.py

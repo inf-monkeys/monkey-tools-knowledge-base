@@ -42,7 +42,13 @@ This project has 2 main entrypoints:
     pip install -r requirements.txt
     ```
 
-4. Start the API Server:
+4. Run db migrations:
+
+    ```bash
+    flask db upgrade
+    ```
+
+5. Start the API Server:
 
     ```bash
     python app.py
@@ -50,7 +56,7 @@ This project has 2 main entrypoints:
 
     You can now access the app on [http://localhost:8899](http://localhost:8899)
 
-4. Start the worker:
+6. Start the worker:
 
     ```bash
     python worker.py
