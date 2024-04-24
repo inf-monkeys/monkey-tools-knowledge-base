@@ -21,3 +21,4 @@ weaviate-client~=3.21.0
 redis
 flask-migrate~=4.0.5
 loguru
+pymupdf
