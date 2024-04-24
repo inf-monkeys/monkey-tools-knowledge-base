@@ -54,7 +54,7 @@ This project has 2 main entrypoints:
     python app.py
     ```
 
-    You can now access the app on [http://localhost:8899](http://localhost:8899)
+    You can now access the app on [http://localhost:5000](http://localhost:5000)
 
 6. Start the worker:
 

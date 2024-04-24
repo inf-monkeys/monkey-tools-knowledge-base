@@ -71,4 +71,4 @@ def get_manifest():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=config_data.get("server", {}).get("port", 8899))
+    app.run(host="0.0.0.0", port=config_data.get("server", {}).get("port", 5000))

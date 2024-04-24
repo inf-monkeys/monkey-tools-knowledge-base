@@ -17,7 +17,7 @@ RUN pip3 install -r requirements.txt && rm -rf /root/.cache/pip
 
 COPY . .
 
-EXPOSE 8899
+EXPOSE 5000
 
 # Run the app
 CMD ["/app/entrypoint.sh"]
