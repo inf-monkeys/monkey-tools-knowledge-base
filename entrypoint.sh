@@ -2,7 +2,7 @@
 
 # Run db migrations
 
-flask db upgrade &
+flask db upgrade
 
 # Run worker
 python worker.py &
