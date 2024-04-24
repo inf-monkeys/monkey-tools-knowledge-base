@@ -57,7 +57,7 @@ def register(api):
                     "chunk_overlap", DEFAULT_CHUNK_OVERLAP
                 )
                 chunk_size = splitter_config.get("chunk_size", DEFAULT_CHUNK_SIZE)
-                separator = splitter_config.get("segmentSymbol", DEFAULT_SEPARATOR)
+                separator = splitter_config.get("separator", DEFAULT_SEPARATOR)
             else:
                 chunk_overlap = DEFAULT_CHUNK_OVERLAP
                 chunk_size = DEFAULT_CHUNK_SIZE
