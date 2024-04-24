@@ -335,6 +335,8 @@ def consume_task(task_data):
 
             elif file_url:
                 file_path = _download_file(file_url)
+                if not file_path:
+                    raise ValueError("Failed to download file")
                 on_prgress(TaskStatus.IN_PROGRESS, "Downloaded file", 0.1)
                 _load_single_document(
                     knowledge_base_id,
