@@ -66,10 +66,30 @@ class ElasticsearchVectorStore(BaseVectorStore):
                     "metadata": {
                         "type": "object",
                         "properties": {
-                            "created_at": {"type": "date"},
-                            "filename": {"type": "keyword"},
-                            "document_id": {"type": "keyword"},
-                            "user_id": {"type": "keyword"},
+                            "created_at": {
+                                "type": "date",
+                                "fields": {
+                                    "keyword": {"type": "keyword", "ignore_above": 256}
+                                },
+                            },
+                            "filename": {
+                                "type": "text",
+                                "fields": {
+                                    "keyword": {"type": "keyword", "ignore_above": 256}
+                                },
+                            },
+                            "document_id": {
+                                "type": "text",
+                                "fields": {
+                                    "keyword": {"type": "keyword", "ignore_above": 256}
+                                },
+                            },
+                            "user_id": {
+                                "type": "text",
+                                "fields": {
+                                    "keyword": {"type": "keyword", "ignore_above": 256}
+                                },
+                            },
                         },
                     },
                 }
@@ -213,13 +233,15 @@ class ElasticsearchVectorStore(BaseVectorStore):
         if metadata_filter:
             for key, value in metadata_filter.items():
                 if value is not None:
-                    must_statements.append({"term": {f"metadata.{key}": value}})
+                    must_statements.append({"term": {f"metadata.{key}.keyword": value}})
         try:
             sort = (
                 [{"metadata.created_at": {"order": "desc"}}]
                 if sort_by_created_at
                 else None
             )
+            print(f"sort: {sort}")
+            print("must_statements:", must_statements)
             response = self._client.search(
                 index=self._collection_name,
                 query={"bool": {"must": must_statements}},

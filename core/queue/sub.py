@@ -20,6 +20,7 @@ from core.models.document import DocumentEntity
 from core.utils.zip import extract_files_from_zip
 from core.utils.oss.aliyunoss import AliyunOSSClient
 from core.utils.oss.tos import TOSClient
+from core.models.metadata_field import MetadataFieldEntity
 
 
 def _download_file(file_url):
@@ -196,6 +197,7 @@ def _load_single_document(
                 0.5,
             )
 
+            metadata_fields = set()
             for i, segment in enumerate(splitted_segments):
                 if not segment.metadata:
                     segment.metadata = {}
@@ -206,7 +208,12 @@ def _load_single_document(
                 segment.metadata["document_id"] = document_id
                 segment.metadata["user_id"] = user_id
 
+                metadata_fields.update(segment.metadata.keys())
+
             vector_store.add_texts(splitted_segments)
+            MetadataFieldEntity.add_keys_if_not_exists(
+                knowledge_base_id, metadata_fields
+            )
 
             on_prgress(TaskStatus.COMPLETED, "Loaded to vector store", 1)
             DocumentEntity.update_status_by_id(
