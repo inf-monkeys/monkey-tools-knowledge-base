@@ -27,7 +27,7 @@ def register(api):
                 "x-monkey-tool-input": [
                     {
                         "displayName": "文本数据库",
-                        "name": "knowledgeBaseName",
+                        "name": "knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "knowledge-base"},
                         "default": "",
@@ -102,7 +102,7 @@ def register(api):
                 ],
                 "x-monkey-tool-output": [
                     {
-                        "name": "result",
+                        "name": "hits",
                         "displayName": "相似性集合",
                         "type": "json",
                         "typeOptions": {
@@ -149,7 +149,10 @@ def register(api):
                 size=size,
                 sort_by_created_at=sort_by_created_at,
             )
-            return {"hits": [document.serialize() for document in documents]}
+            return {
+                "hits": [document.serialize() for document in documents],
+                "text": "\n\n".join([document.page_content for document in documents]),
+            }
 
     @knowledge_base_ns.route("/<string:knowledge_base_id>/vector-search")
     @knowledge_base_ns.response(404, "Knowledge base not found")
@@ -251,112 +254,112 @@ def register(api):
                 "text": "\n\n".join([document.page_content for document in documents]),
             }
 
-    @knowledge_base_ns.route("/<string:knowledge_base_id>/hybird-search")
-    @knowledge_base_ns.response(404, "Knowledge base not found")
-    @knowledge_base_ns.param("knowledge_base_name", "The knowledge base identifier")
-    class KnowledgeBaseHybirdSearch(Resource):
-        @knowledge_base_ns.doc("hybird_search")
-        @knowledge_base_ns.vendor(
-            {
-                "x-monkey-tool-name": "hybird_search",
-                "x-monkey-tool-categories": ["query"],
-                "x-monkey-tool-display-name": "综合搜索",
-                "x-monkey-tool-description": "根据提供的文本对进行相似性搜索",
-                "x-monkey-tool-icon": "emoji:💿:#e58c3a",
-                "x-monkey-tool-input": [
-                    {
-                        "displayName": "文本数据库",
-                        "name": "knowledgeBaseName",
-                        "type": "string",
-                        "typeOptions": {"assetType": "knowledge-base"},
-                        "default": "",
-                        "required": True,
-                    },
-                    {
-                        "displayName": "关键词",
-                        "name": "question",
-                        "type": "string",
-                        "default": "",
-                        "required": True,
-                    },
-                    {
-                        "displayName": "TopK",
-                        "name": "topK",
-                        "type": "number",
-                        "default": 3,
-                        "required": False,
-                    },
-                    {
-                        "displayName": "根据元数据字段进行过滤",
-                        "name": "metadata_filter",
-                        "type": "json",
-                        "typeOptions": {
-                            "multiFieldObject": True,
-                            "multipleValues": False,
-                        },
-                        "default": "",
-                        "required": False,
-                        "description": "根据元数据的字段进行过滤",
-                    },
-                ],
-                "x-monkey-tool-output": [
-                    {
-                        "name": "result",
-                        "displayName": "相似性集合",
-                        "type": "json",
-                        "typeOptions": {
-                            "multipleValues": True,
-                        },
-                        "properties": [
-                            {
-                                "name": "metadata",
-                                "displayName": "元数据",
-                                "type": "json",
-                            },
-                            {
-                                "name": "page_content",
-                                "displayName": "文本内容",
-                                "type": "string",
-                            },
-                        ],
-                    },
-                    {
-                        "name": "text",
-                        "displayName": "所有搜索的结果组合的字符串",
-                        "type": "string",
-                    },
-                ],
-                "x-monkey-tool-extra": {
-                    "estimateTime": 5,
-                },
-            }
-        )
-        def post(self, knowledgeBaseName):
-            """Execute full-text search and vector searches simultaneously, re-rank to select the best match for the user's query. Configuration of the Rerank model APIis necessary."""
-            input_data = request.json
-            team_id = request.team_id
-            query = input_data.get("query")
-            if not query:
-                raise Exception("query is empty")
-            top_k = input_data.get("topK", 3)
-            metadata_filter = input_data.get("metadata_filter", None)
+    # @knowledge_base_ns.route("/<string:knowledge_base_id>/hybird-search")
+    # @knowledge_base_ns.response(404, "Knowledge base not found")
+    # @knowledge_base_ns.param("knowledge_base_name", "The knowledge base identifier")
+    # class KnowledgeBaseHybirdSearch(Resource):
+    #     @knowledge_base_ns.doc("hybird_search")
+    #     @knowledge_base_ns.vendor(
+    #         {
+    #             "x-monkey-tool-name": "hybird_search",
+    #             "x-monkey-tool-categories": ["query"],
+    #             "x-monkey-tool-display-name": "综合搜索",
+    #             "x-monkey-tool-description": "根据提供的文本对进行相似性搜索",
+    #             "x-monkey-tool-icon": "emoji:💿:#e58c3a",
+    #             "x-monkey-tool-input": [
+    #                 {
+    #                     "displayName": "文本数据库",
+    #                     "name": "knowledgeBaseName",
+    #                     "type": "string",
+    #                     "typeOptions": {"assetType": "knowledge-base"},
+    #                     "default": "",
+    #                     "required": True,
+    #                 },
+    #                 {
+    #                     "displayName": "关键词",
+    #                     "name": "question",
+    #                     "type": "string",
+    #                     "default": "",
+    #                     "required": True,
+    #                 },
+    #                 {
+    #                     "displayName": "TopK",
+    #                     "name": "topK",
+    #                     "type": "number",
+    #                     "default": 3,
+    #                     "required": False,
+    #                 },
+    #                 {
+    #                     "displayName": "根据元数据字段进行过滤",
+    #                     "name": "metadata_filter",
+    #                     "type": "json",
+    #                     "typeOptions": {
+    #                         "multiFieldObject": True,
+    #                         "multipleValues": False,
+    #                     },
+    #                     "default": "",
+    #                     "required": False,
+    #                     "description": "根据元数据的字段进行过滤",
+    #                 },
+    #             ],
+    #             "x-monkey-tool-output": [
+    #                 {
+    #                     "name": "result",
+    #                     "displayName": "相似性集合",
+    #                     "type": "json",
+    #                     "typeOptions": {
+    #                         "multipleValues": True,
+    #                     },
+    #                     "properties": [
+    #                         {
+    #                             "name": "metadata",
+    #                             "displayName": "元数据",
+    #                             "type": "json",
+    #                         },
+    #                         {
+    #                             "name": "page_content",
+    #                             "displayName": "文本内容",
+    #                             "type": "string",
+    #                         },
+    #                     ],
+    #                 },
+    #                 {
+    #                     "name": "text",
+    #                     "displayName": "所有搜索的结果组合的字符串",
+    #                     "type": "string",
+    #                 },
+    #             ],
+    #             "x-monkey-tool-extra": {
+    #                 "estimateTime": 5,
+    #             },
+    #         }
+    #     )
+    #     def post(self, knowledgeBaseName):
+    #         """Execute full-text search and vector searches simultaneously, re-rank to select the best match for the user's query. Configuration of the Rerank model APIis necessary."""
+    #         input_data = request.json
+    #         team_id = request.team_id
+    #         query = input_data.get("query")
+    #         if not query:
+    #             raise Exception("query is empty")
+    #         top_k = input_data.get("topK", 3)
+    #         metadata_filter = input_data.get("metadata_filter", None)
 
-            app_id = request.app_id
-            collection = get_knowledge_base_or_fail(app_id, team_id, knowledgeBaseName)
+    #         app_id = request.app_id
+    #         collection = get_knowledge_base_or_fail(app_id, team_id, knowledgeBaseName)
 
-            es_client = ESClient(app_id=app_id, index_name=knowledgeBaseName)
-            embedding_model = collection.embedding_model
-            embedding = generate_embedding_of_model(embedding_model, query)
+    #         es_client = ESClient(app_id=app_id, index_name=knowledgeBaseName)
+    #         embedding_model = collection.embedding_model
+    #         embedding = generate_embedding_of_model(embedding_model, query)
 
-            data = es_client.vector_search(embedding, top_k, metadata_filter)
-            data = [
-                {
-                    "page_content": item["_source"]["page_content"],
-                    "metadata": item["_source"]["metadata"],
-                }
-                for item in data
-            ]
-            texts = [item["page_content"] for item in data]
-            text = "\n".join(texts)
+    #         data = es_client.vector_search(embedding, top_k, metadata_filter)
+    #         data = [
+    #             {
+    #                 "page_content": item["_source"]["page_content"],
+    #                 "metadata": item["_source"]["metadata"],
+    #             }
+    #             for item in data
+    #         ]
+    #         texts = [item["page_content"] for item in data]
+    #         text = "\n".join(texts)
 
-            return {"result": data, "text": text}
+    #         return {"result": data, "text": text}
