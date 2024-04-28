@@ -1,8 +1,5 @@
-from flask import request, jsonify
+from flask import request
 from flask_restx import Resource
-from core.utils.embedding import (
-    generate_embedding_of_model,
-)
 from core.storage.vectorstore.vector_store_factory import VectorStoreFactory
 from core.models.knowledge_base import KnowledgeBaseEntity
 
