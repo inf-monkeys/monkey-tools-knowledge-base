@@ -1,11 +1,8 @@
 import logging
 import traceback
-from typing import Any, Optional
-from uuid import uuid4
-
+from typing import Any
 import elasticsearch
 from pydantic import BaseModel
-from core.models.field import Field
 from core.models.document import Document
 from core.storage.vectorstore.vector_store_base import BaseVectorStore
 from elasticsearch import Elasticsearch, helpers
@@ -48,9 +45,7 @@ class ElasticsearchVectorStore(BaseVectorStore):
         super().__init__(collection_name)
         self._client_config = config
         self._client = self._init_client(config)
-        self._consistency_level = "Session"
-        self._fields = []
-
+        
     def create_collection(self, **kwargs) -> BaseVectorStore:
         dimension = kwargs.get("dimension")
         self._client.indices.create(
@@ -240,8 +235,6 @@ class ElasticsearchVectorStore(BaseVectorStore):
                 if sort_by_created_at
                 else None
             )
-            print(f"sort: {sort}")
-            print("must_statements:", must_statements)
             response = self._client.search(
                 index=self._collection_name,
                 query={"bool": {"must": must_statements}},

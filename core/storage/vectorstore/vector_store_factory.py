@@ -109,6 +109,26 @@ class VectorStoreFactory:
                     password=password,
                 ),
             )
+        elif vector_type == "pgvector":
+            from core.storage.vectorstore.pgvector.pgvector_store import (
+                PGVectorConfig,
+                PGVectorStore,
+            )
+
+            pgvector_config = vector_config.get("pgvector")
+            url = pgvector_config.get("url")
+            batch_size = pgvector_config.get("batch_size", 100)
+            dataset_id = self._knowledgebase.id
+            dimension = self._knowledgebase.dimension
+            collection_name = KnowledgeBaseEntity.gen_collection_name_by_id(dataset_id)
+            return PGVectorStore(
+                collection_name=collection_name,
+                dimension=dimension,
+                config=PGVectorConfig(
+                    url=url,
+                    batch_size=batch_size,
+                ),
+            )
         else:
             raise ValueError(f"Vector store {vector_type} is not supported.")
 
@@ -128,7 +148,7 @@ class VectorStoreFactory:
 
     def delete_by_ids(self, ids: list[str]) -> None:
         self._vector_processor.delete_by_ids(ids)
-        
+
     def update_by_id(self, id: str, document: Document) -> None:
         self._vector_processor.update_by_id(id, document)
 

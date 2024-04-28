@@ -104,25 +104,12 @@ def register(api):
     @knowledge_base_ns.response(404, "Knowledge base not found")
     @knowledge_base_ns.param("document_id", "The document identifier")
     class KnowledgeBaseDocumentDetail(Resource):
-        def get(self, knowledge_base_id, document_id):
-            """Get a document in the knowledge base"""
-            KnowledgeBaseEntity.get_by_id(knowledge_base_id)
-            document = knowledge_base.get_document(document_id)
-            return jsonify(document)
-
-        def put(self, knowledge_base_id, document_id):
-            """Update a document in the knowledge base"""
-            KnowledgeBaseEntity.get_by_id(knowledge_base_id)
-            data = request.json
-            document = knowledge_base.update_document(document_id, data)
-            return jsonify(document)
-
         def delete(self, knowledge_base_id, document_id):
             """Delete a document in the knowledge base"""
             knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
-            document = DocumentEntity.delete_by_id(document_id)
 
             vector_store = VectorStoreFactory(knowledge_base)
             vector_store.delete_by_metadata_field("document_id", document_id)
+            DocumentEntity.delete_by_id(document_id)
 
             return {"success": True}

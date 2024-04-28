@@ -15,9 +15,51 @@ This project has 2 main entrypoints:
 
 ### Prerequisite
 
--   Install Python 3.10 +
--   Vector Store: Currently elasticsearch8 and milvus is supported.
+#### Vector Store
 
+-   Install Python 3.10 +
+-   Vector Store: Currently The following vector store is supported:
+  
+| Vector Store Type | Supported | Vector Search | Full Text Search |
+| ----------------- | --------- | ------------- | ---------------- |
+| `elasticsearch8`  | `Yes`     | `Yes`         | `Yes`            |
+| `pgvector`        | `Yes`     | `Yes`         | `Yes`            |
+
+
+#### Download Embedding Models
+
+This project uses [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding) to generate embeddings, if you have internet connection, it will download embedding models from huggingface automaticly. If not, or you want to reduce time when first download model, you can download the models mannualy.
+
+Below are some models you can choose, or you can download any model you want from huggingface.
+
+- BAAI/bge-base-zh-v1.5: 
+    - huggingface repo: https://huggingface.co/BAAI/bge-base-zh-v1.5
+    - CDN: https://static.infmonkeys.com/models/embeddings/bge-base-zh-v1.5.tar.gz
+
+- jinaai/jina-embeddings-v2-base-en:
+    - huggingface repo: https://huggingface.co/jinaai/jina-embeddings-v2-base-en
+    - CDN: https://static.infmonkeys.com/models/embeddings/jina-embeddings-v2-base-en.tar.gz
+
+- jinaai/jina-embeddings-v2-small-en:
+    - huggingface: https://huggingface.co/jinaai/jina-embeddings-v2-small-en
+    - CDN: https://static.infmonkeys.com/models/embeddings/jina-embeddings-v2-small-en.tar.gz
+
+- moka-ai/m3e-base:
+    - 描述: 适用于中文语料的 embedding
+    - huggingface repo: https://huggingface.co/moka-ai/m3e-base
+    - CDN 下载地址: https://static.infmonkeys.com/models/embeddings/jina-embeddings-v2-small-en.tar.gz
+
+When download finished, You need to put it into `./models` folder.
+
+### Configuration
+
+Create a `config.yaml` in the source root directory: 
+
+```sh
+cp config.yaml.example config.yaml
+```
+
+Below is the detailed explaination of all configs:
 
 ### Setup
 

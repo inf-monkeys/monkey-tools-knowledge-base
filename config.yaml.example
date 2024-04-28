@@ -1,23 +1,30 @@
 server:
-  port: 5000
+  port: 8899
 
-mongo:
-  url:
+database:
+  url: postgresql://postgres:postgres@localhost:5432/knowledge-base
 
 redis:
-  url:
+  url: redis://139.180.223.98:16279/
 
-elasticsearch:
-  url:
-  username:
-  password:
-  knnNumCandidates: 100
-  batchSize: 100
+vector:
+  type: elasticsearch
+  elasticsearch:
+    url: https://localhost:9201/
+    username: elastic
+    password: es39qlC2CNS2X79cBQdi
 
-s3:
-  accessKeyId:
-  secretAccessKey:
-  endpoint:
-  region:
-  bucket:
-
+embeddings:
+  models:
+    - name: BAAI/bge-base-zh-v1.5
+      displayName: BAAI/bge-base-zh-v1.5
+      dimension: 768
+    - name: jinaai/jina-embeddings-v2-base-en
+      displayName: jinaai/jina-embeddings-v2-base-en
+      dimension: 768
+    - name: jinaai/jina-embeddings-v2-small-en
+      displayName: jinaai/jina-embeddings-v2-small-en
+      dimension: 512
+    - name: moka-ai/m3e-base
+      displayName: moka-ai/m3e-base
+      dimension: 768
