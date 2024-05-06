@@ -6,6 +6,10 @@
 
 English | [中文](./README-ZH.md)
 
+## 🐳 Docker 
+
+We provide a helm chart, read more [here](https://github.com/inf-monkeys/monkeys-cloud/blob/main/helm/charts/community/tools/monkey-tools-knowledge-base/README.md).
+
 ## 👨‍💻 Developers
 
 This project has 2 main entrypoints:
@@ -58,8 +62,6 @@ Create a `config.yaml` in the source root directory:
 ```sh
 cp config.yaml.example config.yaml
 ```
-
-Below is the detailed explaination of all configs:
 
 ### Setup
 
