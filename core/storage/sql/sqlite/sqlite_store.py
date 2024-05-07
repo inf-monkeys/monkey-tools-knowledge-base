@@ -4,6 +4,7 @@ import sqlite3
 from sqlite3 import Connection
 from core.config import SQLITE_FILE_FOLDER
 import os
+import pandas
 
 
 class SqliteSqlStore(BaseSQLStore):
@@ -51,3 +52,11 @@ WHERE type='table';
 
     def drop_database(self, **kwargs):
         os.remove(self.sqlite_file)
+
+    def import_csv(self, **kwargs):
+        csvfile = kwargs.get("csvfile")
+        table_name = kwargs.get("table_name")
+        if not csvfile:
+            raise ValueError("csvfile must be specified.")
+        df = pandas.read_csv(csvfile)
+        df.to_sql(table_name, self._client, if_exists="append", index=False, chunksize=1000)

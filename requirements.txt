@@ -24,3 +24,4 @@ loguru
 pymupdf
 redis-py-cluster
 pgvector
+pandas

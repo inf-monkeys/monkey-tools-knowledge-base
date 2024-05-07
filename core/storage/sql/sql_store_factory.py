@@ -39,3 +39,6 @@ class SqlStoreFactory:
 
     def drop_database(self):
         self._sql_processor.drop_database()
+
+    def import_csv(self, **kwargs):
+        return self._sql_processor.import_csv(**kwargs)

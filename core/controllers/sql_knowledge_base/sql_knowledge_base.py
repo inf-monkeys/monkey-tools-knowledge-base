@@ -74,3 +74,23 @@ def register(api):
             sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
             success = sql_store.create_table(sql=sql)
             return {"success": success}
+
+    @sql_knowledge_base_ns.route("/<string:sql_knowledge_base_id>/csvs")
+    @sql_knowledge_base_ns.response(404, "Sql Knowledge base not found")
+    @sql_knowledge_base_ns.param(
+        "sql_knowledge_base_id", "The sql knowledge base identifier"
+    )
+    class SqlKnowledgeBaseCSVs(Resource):
+        """Manage Sql Knowledge Base CSVs"""
+
+        @sql_knowledge_base_ns.doc("import_csv")
+        def post(self, sql_knowledge_base_id):
+            """Import csv to a sql knowledge base"""
+            csvfile = request.json.get("csvfile")
+            table_name = request.json.get("table_name")
+            sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
+                sql_knowledge_base_id
+            )
+            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+            success = sql_store.import_csv(csvfile=csvfile, table_name=table_name)
+            return {"success": success}

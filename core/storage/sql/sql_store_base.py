@@ -25,3 +25,7 @@ class BaseSQLStore(ABC):
     @abstractmethod
     def drop_database(self, **kwargs):
         raise NotImplementedError
+
+    @abstractmethod
+    def import_csv(self, **kwargs):
+        raise NotImplementedError
