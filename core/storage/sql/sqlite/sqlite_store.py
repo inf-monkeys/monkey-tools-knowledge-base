@@ -56,7 +56,21 @@ WHERE type='table';
     def import_csv(self, **kwargs):
         csvfile = kwargs.get("csvfile")
         table_name = kwargs.get("table_name")
+        sep = kwargs.get("sep", ",")
         if not csvfile:
             raise ValueError("csvfile must be specified.")
-        df = pandas.read_csv(csvfile)
-        df.to_sql(table_name, self._client, if_exists="append", index=False, chunksize=1000)
+        df = pandas.read_csv(csvfile, sep=sep)
+
+        # Clean and convert column names to snake case
+        def clean_and_convert_column_names(columns):
+            clean_columns = []
+            for col in columns:
+                clean_col = col.strip()
+                snake_case_col = "_".join(clean_col.lower().split()).replace("-", "_")
+                clean_columns.append(snake_case_col)
+            return clean_columns
+
+        df.columns = clean_and_convert_column_names(df.columns)
+        df.to_sql(
+            table_name, self._client, if_exists="append", index=False, chunksize=1000
+        )

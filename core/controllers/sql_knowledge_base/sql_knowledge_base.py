@@ -88,9 +88,10 @@ def register(api):
             """Import csv to a sql knowledge base"""
             csvfile = request.json.get("csvfile")
             table_name = request.json.get("table_name")
+            sep = request.json.get("sep", ",")
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
                 sql_knowledge_base_id
             )
             sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
-            success = sql_store.import_csv(csvfile=csvfile, table_name=table_name)
+            success = sql_store.import_csv(csvfile=csvfile, table_name=table_name, sep=sep)
             return {"success": success}
