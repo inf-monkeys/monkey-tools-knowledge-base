@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 import uuid
 import os
 from random import choice
@@ -49,3 +50,11 @@ def ensure_directory_exists(dir_path):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     return dir_path
+
+def get_host_from_url(url: str) -> str:
+    try:
+        parsed_url = urlparse(url)
+        return f"{parsed_url.hostname}:{parsed_url.port}" if parsed_url.port else parsed_url.hostname
+    except Exception as e:
+        print(f"Invalid URL: {e}")
+        return ''
