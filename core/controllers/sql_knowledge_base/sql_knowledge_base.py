@@ -54,7 +54,7 @@ def register(api):
     class SqlKnowledgeBaseTables(Resource):
         """Manage Sql Knowledge Base Tables"""
 
-        @sql_knowledge_base_ns.doc("delete_sql_knowledge_base")
+        @sql_knowledge_base_ns.doc("list_sql_knowledge_base_tables")
         def get(self, sql_knowledge_base_id):
             """Get tables from a sql knowledge base"""
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
@@ -64,7 +64,7 @@ def register(api):
             tables = sql_store.get_tables()
             return {"tables": [table.serialize() for table in tables]}
 
-        @sql_knowledge_base_ns.doc("create_sql_knowledge_base")
+        @sql_knowledge_base_ns.doc("create_sql_knowledge_base_table")
         def post(self, sql_knowledge_base_id):
             """Create a new table in a sql knowledge base"""
             sql = request.json.get("sql")
@@ -73,6 +73,43 @@ def register(api):
             )
             sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
             success = sql_store.create_table(sql=sql)
+            return {"success": success}
+
+    @sql_knowledge_base_ns.route(
+        "/<string:sql_knowledge_base_id>/tables/<string:table_name>"
+    )
+    @sql_knowledge_base_ns.response(404, "Sql Knowledge base not found")
+    @sql_knowledge_base_ns.param(
+        "sql_knowledge_base_id", "The sql knowledge base identifier"
+    )
+    @sql_knowledge_base_ns.param("table_id", "The table name")
+    class SqlKnowledgeBaseTables(Resource):
+        """Manage Sql Knowledge Base Table Records"""
+
+        @sql_knowledge_base_ns.doc("list_table_records")
+        def get(self, sql_knowledge_base_id, table_name):
+            """List records from a table"""
+            sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
+                sql_knowledge_base_id
+            )
+            page = request.args.get("page", 1)
+            page = int(page)
+            limit = request.args.get("limit", 10)
+            limit = int(limit)
+            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+            records = sql_store.list_table_records(
+                table_name=table_name, page=page, limit=limit
+            )
+            return {"records": records}
+
+        @sql_knowledge_base_ns.doc("delete_table")
+        def delete(self, sql_knowledge_base_id, table_name):
+            """Delete table"""
+            sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
+                sql_knowledge_base_id
+            )
+            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+            success = sql_store.drop_table(table_name)
             return {"success": success}
 
     @sql_knowledge_base_ns.route("/<string:sql_knowledge_base_id>/csvs")
@@ -93,5 +130,7 @@ def register(api):
                 sql_knowledge_base_id
             )
             sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
-            success = sql_store.import_csv(csvfile=csvfile, table_name=table_name, sep=sep)
+            success = sql_store.import_csv(
+                csvfile=csvfile, table_name=table_name, sep=sep
+            )
             return {"success": success}

@@ -42,3 +42,9 @@ class SqlStoreFactory:
 
     def import_csv(self, **kwargs):
         return self._sql_processor.import_csv(**kwargs)
+
+    def list_table_records(self, table_name: str, **kwargs):
+        return self._sql_processor.list_table_records(table_name, **kwargs)
+
+    def drop_table(self, table_name: str):
+        return self._sql_processor.drop_table(table_name)
