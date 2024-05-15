@@ -13,6 +13,8 @@ Base = declarative_base()
 
 class PGVectorConfig(BaseModel):
     url: str
+    pool_size: int = 5
+    max_overflow: int = 10
     batch_size: int = 100
 
     def validate_config(cls, values: dict) -> dict:
@@ -21,13 +23,28 @@ class PGVectorConfig(BaseModel):
         return values
 
 
+session = None
+engine = None
+
+
+def create_session(config: PGVectorConfig):
+    global engine
+    global session
+    
+    if session and engine:
+        return engine, session
+    
+    engine = create_engine(config.url, pool_size=config.pool_size, max_overflow=config.max_overflow)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return engine, session
+
+
 class PGVectorStore(BaseVectorStore):
     def __init__(self, collection_name: str, dimension: int, config: PGVectorConfig):
         super().__init__(collection_name)
         self._client_config = config
-        self._engine = self._init_client(config)
-        Session = sessionmaker(bind=self._engine)
-        self._session = Session()
+        self._engine, self._session = create_session(config)
 
         class PGVectorDocument(Base):
             __tablename__ = self._collection_name
@@ -68,9 +85,6 @@ class PGVectorStore(BaseVectorStore):
                 USING gin(to_tsvector('english', page_content))
                 """
             )
-
-    def _init_client(self, config: PGVectorConfig):
-        return create_engine(config.url)
 
     def add_texts(
         self,

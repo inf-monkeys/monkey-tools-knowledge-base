@@ -118,6 +118,8 @@ class VectorStoreFactory:
             pgvector_config = vector_config.get("pgvector")
             url = pgvector_config.get("url")
             batch_size = pgvector_config.get("batch_size", 100)
+            pool_size = pgvector_config.get("pool_size", 5)
+            max_overflow = pgvector_config.get("max_overflow", 10)
             dataset_id = self._knowledgebase.id
             dimension = self._knowledgebase.dimension
             collection_name = KnowledgeBaseEntity.gen_collection_name_by_id(dataset_id)
@@ -127,6 +129,8 @@ class VectorStoreFactory:
                 config=PGVectorConfig(
                     url=url,
                     batch_size=batch_size,
+                    pool_size=pool_size,
+                    max_overflow=max_overflow,
                 ),
             )
         else:
