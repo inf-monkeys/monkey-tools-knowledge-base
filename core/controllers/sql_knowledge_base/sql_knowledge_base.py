@@ -19,14 +19,44 @@ def register(api):
         @sql_knowledge_base_ns.doc("create_sql_knowledge_base")
         def post(self):
             """Create a new sql knowledge base"""
+
+            type = request.json.get("createType", "builtIn")
+            host = request.json.get("host")
+            port = request.json.get("port")
+            username = request.json.get("username")
+            password = request.json.get("password")
+            schema = request.json.get("schema", "public")
+            database = request.json.get("database")
+
+            if type == "external":
+                if (
+                    not host
+                    or not port
+                    or not username
+                    or not password
+                    or not schema
+                    or not database
+                ):
+                    return {"error": "Missing required fields"}, 400
+
+                port = int(port)
+
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity(
                 id=str(uuid.uuid4()),
+                type=type,
+                host=host,
+                port=port,
+                username=username,
+                password=password,
+                schema=schema,
+                database=database,
             )
             db.session.add(sql_knowledge_base_entity)
             db.session.commit()
 
-            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
-            sql_store.create_database()
+            if type == "builtIn":
+                sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+                sql_store.create_database()
 
             return jsonify(sql_knowledge_base_entity.serialize())
 

@@ -84,7 +84,6 @@ WHERE type='table';
         page = kwargs.get("page", 1)
         limit = kwargs.get("limit", 10)
         sql = f"select * from {table_name} limit {limit} offset {(page - 1) * limit}"
-        print(sql)
         cur = self._conn.cursor()
         cur.execute(sql)
         rows = cur.fetchall()
