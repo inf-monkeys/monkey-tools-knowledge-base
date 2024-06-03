@@ -5,6 +5,7 @@ from flask_restx import Resource
 from core.models.sql_knowledge_base import SqlKnowledgeBaseEntity
 import uuid
 from core.storage.sql.sql_store_factory import SqlStoreFactory
+from core.storage.external_sql.external_sql_store_factory import ExternalSqlStoreFactory
 
 
 def register(api):
@@ -20,15 +21,29 @@ def register(api):
         def post(self):
             """Create a new sql knowledge base"""
 
-            type = request.json.get("createType", "builtIn")
-            host = request.json.get("host")
-            port = request.json.get("port")
-            username = request.json.get("username")
-            password = request.json.get("password")
-            schema = request.json.get("schema", "public")
-            database = request.json.get("database")
+            data = request.json
+            type = data.get("createType", "builtIn")
+
+            external_database_type = None
+            host = None
+            port = None
+            username = None
+            password = None
+            schema = None
+            database = None
 
             if type == "external":
+                external_database_type = data.get("externalDatabaseType")
+                external_database_connection_options = data.get(
+                    "externalDatabaseConnectionOptions"
+                )
+                host = external_database_connection_options.get("host")
+                port = external_database_connection_options.get("port")
+                username = external_database_connection_options.get("username")
+                password = external_database_connection_options.get("password")
+                schema = external_database_connection_options.get("schema", "public")
+                database = external_database_connection_options.get("database")
+
                 if (
                     not host
                     or not port
@@ -44,6 +59,7 @@ def register(api):
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity(
                 id=str(uuid.uuid4()),
                 type=type,
+                database_type=external_database_type,
                 host=host,
                 port=port,
                 username=username,
@@ -90,9 +106,19 @@ def register(api):
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
                 sql_knowledge_base_id
             )
-            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
-            tables = sql_store.get_tables()
-            return {"tables": [table.serialize() for table in tables]}
+
+            tables = []
+            if sql_knowledge_base_entity.type == "external":
+                external_sql_store = ExternalSqlStoreFactory(
+                    knowledgebase=sql_knowledge_base_entity
+                )
+                tables = external_sql_store.get_tables()
+                tables = [table.serialize() for table in tables]
+            else:
+                sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+                tables = sql_store.get_tables()
+                tables = [table.serialize() for table in tables]
+            return {"tables": tables}
 
         @sql_knowledge_base_ns.doc("create_sql_knowledge_base_table")
         def post(self, sql_knowledge_base_id):
@@ -116,21 +142,131 @@ def register(api):
     class SqlKnowledgeBaseTables(Resource):
         """Manage Sql Knowledge Base Table Records"""
 
-        @sql_knowledge_base_ns.doc("list_table_records")
+        @sql_knowledge_base_ns.doc("query_table")
+        @sql_knowledge_base_ns.vendor(
+            {
+                "x-monkey-tool-name": "query_table",
+                "x-monkey-tool-categories": ["query"],
+                "x-monkey-tool-display-name": "查询表格数据",
+                "x-monkey-tool-description": "查询表格数据",
+                "x-monkey-tool-icon": "emoji:📊:#e58c3a",
+                "x-monkey-tool-input": [
+                    {
+                        "displayName": "文本数据库",
+                        "name": "sql_knowledge_base_id",
+                        "type": "string",
+                        "typeOptions": {"assetType": "sql-knowledge-base"},
+                        "default": "",
+                        "required": True,
+                    },
+                    {
+                        "diaplasyName": "查询模式",
+                        "name": "queryMode",
+                        "type": "options",
+                        "default": "simple",
+                        "options": [
+                            {
+                                "name": "simple",
+                                "value": "simple",
+                            },
+                            {"name": "sql", "value": "sql"},
+                        ],
+                    },
+                    {
+                        "displayName": "表名",
+                        "name": "table_name",
+                        "type": "string",
+                        "default": "",
+                        "required": False,
+                        "displayOptions": {
+                            "show": {
+                                "queryMode": ["simple"],
+                            }
+                        },
+                    },
+                    {
+                        "displayName": "Page",
+                        "name": "page",
+                        "type": "number",
+                        "default": 1,
+                        "required": False,
+                        "displayOptions": {
+                            "show": {
+                                "queryMode": ["simple"],
+                            }
+                        },
+                    },
+                    {
+                        "displayName": "Limit",
+                        "name": "limit",
+                        "type": "number",
+                        "default": 10,
+                        "required": False,
+                        "displayOptions": {
+                            "show": {
+                                "queryMode": ["simple"],
+                            }
+                        },
+                    },
+                    {
+                        "displayName": "SQL 查询语句",
+                        "name": "sql",
+                        "type": "string",
+                        "default": "",
+                        "required": False,
+                        "displayOptions": {
+                            "show": {
+                                "queryMode": ["sql"],
+                            }
+                        },
+                    },
+                ],
+                "x-monkey-tool-extra": {
+                    "estimateTime": 5,
+                },
+            }
+        )
         def get(self, sql_knowledge_base_id, table_name):
             """List records from a table"""
             sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
                 sql_knowledge_base_id
             )
-            page = request.args.get("page", 1)
-            page = int(page)
-            limit = request.args.get("limit", 10)
-            limit = int(limit)
-            sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
-            records = sql_store.list_table_records(
-                table_name=table_name, page=page, limit=limit
-            )
-            return {"records": records}
+
+            json = request.json
+            query_mode = json.get("queryMode", "simple")
+
+            records = []
+            if query_mode == "simple":
+                page = json.get("page", 1)
+                page = int(page)
+                limit = json.get("limit", 10)
+                limit = int(limit)
+                if sql_knowledge_base_entity.type == "external":
+                    external_sql_store = ExternalSqlStoreFactory(
+                        knowledgebase=sql_knowledge_base_entity
+                    )
+                    records = external_sql_store.list_table_records(
+                        table_name=table_name, page=page, limit=limit
+                    )
+                else:
+                    sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+                    records = sql_store.list_table_records(
+                        table_name=table_name, page=page, limit=limit
+                    )
+            elif query_mode == "sql":
+                sql = json.get("sql")
+                if not sql:
+                    return {"error": "Missing required fields"}, 400
+                if sql_knowledge_base_entity.type == "external":
+                    external_sql_store = ExternalSqlStoreFactory(
+                        knowledgebase=sql_knowledge_base_entity
+                    )
+                    records = external_sql_store.execute_sql(sql)
+                else:
+                    sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+                    records = sql_store.execute_sql(sql)
+
+            return jsonify({"records": records})
 
         @sql_knowledge_base_ns.doc("delete_table")
         def delete(self, sql_knowledge_base_id, table_name):
@@ -141,6 +277,65 @@ def register(api):
             sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
             success = sql_store.drop_table(table_name)
             return {"success": success}
+
+    @sql_knowledge_base_ns.route("/<string:sql_knowledge_base_id>/sql")
+    @sql_knowledge_base_ns.response(404, "Sql Knowledge base not found")
+    @sql_knowledge_base_ns.param(
+        "sql_knowledge_base_id", "The sql knowledge base identifier"
+    )
+    class SqlKnowledgeBaseExecuteSql(Resource):
+        """Manage Sql Knowledge Base Table Records"""
+
+        @sql_knowledge_base_ns.doc("query_table_sql")
+        @sql_knowledge_base_ns.vendor(
+            {
+                "x-monkey-tool-name": "query_table_sql",
+                "x-monkey-tool-categories": ["query"],
+                "x-monkey-tool-display-name": "使用 SQL 查询表格数据",
+                "x-monkey-tool-description": "使用 SQL 查询表格数据",
+                "x-monkey-tool-icon": "emoji:📊:#e58c3a",
+                "x-monkey-tool-input": [
+                    {
+                        "displayName": "文本数据库",
+                        "name": "sql_knowledge_base_id",
+                        "type": "string",
+                        "typeOptions": {"assetType": "sql-knowledge-base"},
+                        "default": "",
+                        "required": True,
+                    },
+                    {
+                        "displayName": "SQL 查询语句",
+                        "name": "sql",
+                        "type": "string",
+                        "default": "",
+                        "required": True,
+                    },
+                ],
+                "x-monkey-tool-extra": {
+                    "estimateTime": 5,
+                },
+            }
+        )
+        def post(self, sql_knowledge_base_id):
+            """List records from a table"""
+            sql_knowledge_base_entity = SqlKnowledgeBaseEntity.get_by_id(
+                sql_knowledge_base_id
+            )
+            json = request.json
+            records = []
+            sql = json.get("sql")
+            if not sql:
+                return {"error": "Missing required fields"}, 400
+            if sql_knowledge_base_entity.type == "external":
+                external_sql_store = ExternalSqlStoreFactory(
+                    knowledgebase=sql_knowledge_base_entity
+                )
+                records = external_sql_store.execute_sql(sql)
+            else:
+                sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)
+                records = sql_store.execute_sql(sql)
+
+            return jsonify({"records": records})
 
     @sql_knowledge_base_ns.route("/<string:sql_knowledge_base_id>/csvs")
     @sql_knowledge_base_ns.response(404, "Sql Knowledge base not found")

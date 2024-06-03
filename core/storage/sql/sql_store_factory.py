@@ -48,3 +48,6 @@ class SqlStoreFactory:
 
     def drop_table(self, table_name: str):
         return self._sql_processor.drop_table(table_name)
+
+    def execute_sql(self, sql: str):
+        return self._sql_processor.execute_sql(sql)

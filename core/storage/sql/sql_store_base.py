@@ -37,3 +37,7 @@ class BaseSQLStore(ABC):
     @abstractmethod
     def drop_table(self, table_name: str):
         raise NotImplementedError
+
+    @abstractmethod
+    def execute_sql(self, sql: str):
+        raise NotImplementedError

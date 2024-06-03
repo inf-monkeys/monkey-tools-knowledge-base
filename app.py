@@ -1,4 +1,5 @@
 import ssl
+import logging
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -53,21 +54,30 @@ def before_request():
 
 @api.errorhandler(Exception)
 def handle_exception(error):
-    response = {"message": str(error)}
-    response["code"] = 500
-    return response, response["code"]
+    return {"message": str(error)}, 500
 
 
 @app.get("/manifest.json")
 def get_manifest():
     return {
         "schema_version": "v1",
-        "display_name": "向量",
+        "display_name": "知识库",
         "namespace": "monkey_tools_knowledge_base",
         "auth": {"type": "none"},
         "api": {"type": "openapi", "url": "/swagger.json"},
         "contact_email": "dev@inf-monkeys.com",
     }
+
+
+class NoSuccessfulRequestLoggingFilter(logging.Filter):
+    def filter(self, record):
+        return "GET /" not in record.getMessage()
+
+
+# 获取 Flask 的默认日志记录器
+log = logging.getLogger("werkzeug")
+# 创建并添加过滤器
+log.addFilter(NoSuccessfulRequestLoggingFilter())
 
 
 if __name__ == "__main__":

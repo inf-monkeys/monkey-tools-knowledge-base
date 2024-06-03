@@ -95,3 +95,10 @@ WHERE type='table';
         cur = self._conn.cursor()
         cur.execute(sql)
         return True
+
+    def execute_sql(self, sql: str):
+        cur = self._conn.cursor()
+        cur.execute(sql)
+        rows = cur.fetchall()
+        list_of_dicts = [dict(row) for row in rows]
+        return list_of_dicts
