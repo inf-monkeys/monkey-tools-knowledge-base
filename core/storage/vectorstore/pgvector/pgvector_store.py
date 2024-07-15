@@ -1,12 +1,13 @@
 from pydantic import BaseModel
 from core.models.document import Document
 from core.storage.vectorstore.vector_store_base import BaseVectorStore
-from sqlalchemy import create_engine, Column, String, Text, JSON, select, DateTime
+from sqlalchemy import create_engine, Column, String, Text, JSON, select, DateTime, and_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from core.utils import chunk_list, generate_md5
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.sql.expression import text
+from sqlalchemy.dialects.postgresql import array
 
 Base = declarative_base()
 
@@ -167,8 +168,26 @@ class PGVectorStore(BaseVectorStore):
 
     def search_by_vector(self, query_vector: list[float], **kwargs) -> list[Document]:
         top_k = kwargs.get("top_k", 3)
+        metadata_filter = kwargs.get("metadata_filter", None)
+
+        query = select(self._table)
+        if metadata_filter:
+            filters = []
+            for key, value in metadata_filter.items():
+                if not value:
+                    continue
+                if isinstance(value, list):
+                    filters.append(text(f"meta_data->>'{key}' = ANY(:{key})").params({key: value}))
+                elif isinstance(value, str):
+                    filters.append(text(f"meta_data->>'{key}' = :{key}").params({key: value}))
+                elif isinstance(value, int):
+                    filters.append(text(f"meta_data->>'{key}' = :{key}").params({key: str(value)}))
+    
+            if filters:
+                query = query.filter(and_(*filters))
+    
         results = self._session.scalars(
-            select(self._table)
+            query
             .order_by(self._table.embeddings.l2_distance(query_vector))
             .limit(top_k)
         )
@@ -193,3 +212,8 @@ class PGVectorStore(BaseVectorStore):
     def delete(self) -> None:
         with self._engine.connect() as conn:
             conn.execute(f"DROP TABLE {self._collection_name}")
+
+    def get_metadata_key_unique_values(self, key: str) -> list[str]:
+        sql = f"""SELECT DISTINCT meta_data->>'{key}' AS filename FROM "public"."{self._collection_name}";"""
+        result = self._engine.execute(sql)
+        return [row[0] for row in result]

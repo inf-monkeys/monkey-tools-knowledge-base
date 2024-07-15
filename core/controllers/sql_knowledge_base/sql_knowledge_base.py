@@ -147,12 +147,21 @@ def register(api):
             {
                 "x-monkey-tool-name": "query_table",
                 "x-monkey-tool-categories": ["query"],
-                "x-monkey-tool-display-name": "查询表格数据",
-                "x-monkey-tool-description": "查询表格数据",
+                "x-monkey-tool-display-name": {
+                    "zh-CN": "查询表格数据",
+                    "en-US": "Query Table Records",
+                },
+                "x-monkey-tool-description": {
+                    "zh-CN": "查询表格数据",
+                    "en-US": "Query Table Records",
+                },
                 "x-monkey-tool-icon": "emoji:📊:#e58c3a",
                 "x-monkey-tool-input": [
                     {
-                        "displayName": "文本数据库",
+                        "displayName": {
+                            "zh-CN": "关系型数据库",
+                            "en-US": "SQL Knowledge Base",
+                        },
                         "name": "sql_knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "sql-knowledge-base"},
@@ -160,7 +169,10 @@ def register(api):
                         "required": True,
                     },
                     {
-                        "diaplasyName": "查询模式",
+                        "diaplasyName": {
+                            "zh-CN": "查询模式",
+                            "en-US": "Query Mode",
+                        },
                         "name": "queryMode",
                         "type": "options",
                         "default": "simple",
@@ -173,7 +185,10 @@ def register(api):
                         ],
                     },
                     {
-                        "displayName": "表名",
+                        "displayName": {
+                            "zh-CN": "表格名称",
+                            "en-US": "Table Name",
+                        },
                         "name": "table_name",
                         "type": "string",
                         "default": "",
@@ -209,7 +224,10 @@ def register(api):
                         },
                     },
                     {
-                        "displayName": "SQL 查询语句",
+                        "displayName": {
+                            "zh-CN": "SQL 查询语句",
+                            "en-US": "SQL Query",
+                        },
                         "name": "sql",
                         "type": "string",
                         "default": "",
@@ -291,12 +309,21 @@ def register(api):
             {
                 "x-monkey-tool-name": "query_table_sql",
                 "x-monkey-tool-categories": ["query"],
-                "x-monkey-tool-display-name": "使用 SQL 查询表格数据",
-                "x-monkey-tool-description": "使用 SQL 查询表格数据",
+                "x-monkey-tool-display-name": {
+                    "zh-CN": "使用 SQL 查询表格数据",
+                    "en-US": "Query Table Records with SQL",
+                },
+                "x-monkey-tool-description": {
+                    "zh-CN": "使用 SQL 查询表格数据",
+                    "en-US": "Query Table Records with SQL",
+                },
                 "x-monkey-tool-icon": "emoji:📊:#e58c3a",
                 "x-monkey-tool-input": [
                     {
-                        "displayName": "文本数据库",
+                        "displayName": {
+                            "zh-CN": "关系型数据库",
+                            "en-US": "SQL Knowledge Base",
+                        },
                         "name": "sql_knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "sql-knowledge-base"},
@@ -304,7 +331,10 @@ def register(api):
                         "required": True,
                     },
                     {
-                        "displayName": "SQL 查询语句",
+                        "displayName": {
+                            "zh-CN": "SQL 查询语句",
+                            "en-US": "SQL Query",
+                        },
                         "name": "sql",
                         "type": "string",
                         "default": "",

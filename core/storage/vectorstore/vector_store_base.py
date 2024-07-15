@@ -63,3 +63,7 @@ class BaseVectorStore(ABC):
 
     def _get_uuids(self, texts: list[Document]) -> list[str]:
         return [text.metadata["doc_id"] for text in texts]
+
+    @abstractmethod
+    def get_metadata_key_unique_values(self, key: str) -> list[str]:
+        raise NotImplementedError

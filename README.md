@@ -30,6 +30,24 @@ This project has 2 main entrypoints:
 | `pgvector`        | `Yes`     | `Yes`         | `Yes`            |
 
 
+</details>
+
+<details>
+<summary><kbd>PgVector Installation Guide</kbd></summary>
+
+For most simple case, you can install PgVector using Docker:
+
+```sh
+docker run --name pgvector -p 5433:5432 -e POSTGRES_USER=postgres -e POSTGRES_DB=knowledge-base -e POSTGRES_PASSWORD=postgres -d pgvector/pgvector:pg16
+```
+
+And then run `CREATE EXTENSION vector;` inside postgres shell.
+
+Or you can read [official doc](https://github.com/pgvector/pgvector/).
+
+</details>
+
+
 #### Download Embedding Models
 
 This project uses [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding) to generate embeddings, if you have internet connection, it will download embedding models from huggingface automaticly. If not, or you want to reduce time when first download model, you can download the models mannualy.

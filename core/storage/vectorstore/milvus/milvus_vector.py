@@ -310,3 +310,6 @@ class MilvusVector(BaseVectorStore):
             uri = "http://" + str(config.host) + ":" + str(config.port)
         client = MilvusClient(uri=uri, user=config.user, password=config.password)
         return client
+
+    def get_metadata_key_unique_values(self, key: str) -> list[str]:
+        return []

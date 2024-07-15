@@ -18,12 +18,21 @@ def register(api):
             {
                 "x-monkey-tool-name": "fulltext_search_documents",
                 "x-monkey-tool-categories": ["query"],
-                "x-monkey-tool-display-name": "文本全文搜索",
-                "x-monkey-tool-description": "对文本进行全文关键字搜索，返回最匹配的文档列表",
+                "x-monkey-tool-display-name": {
+                    "zh-CN": "文本全文搜索",
+                    "en-US": "Full Text Search",
+                },
+                "x-monkey-tool-description": {
+                    "zh-CN": "根据提供的文本对进行全文搜索",
+                    "en-US": "Index all terms in the document, allowing users to search any term and retrieve relevant text chunk containing those terms.",
+                },
                 "x-monkey-tool-icon": "emoji:💿:#e58c3a",
                 "x-monkey-tool-input": [
                     {
-                        "displayName": "文本数据库",
+                        "displayName": {
+                            "zh-CN": "文本数据库",
+                            "en-US": "Knowledge Base",
+                        },
                         "name": "knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "knowledge-base"},
@@ -31,7 +40,10 @@ def register(api):
                         "required": True,
                     },
                     {
-                        "displayName": "关键词",
+                        "displayName": {
+                            "zh-CN": "关键词",
+                            "en-US": "Query",
+                        },
                         "name": "query",
                         "type": "string",
                         "default": "",
@@ -45,18 +57,36 @@ def register(api):
                         "required": False,
                     },
                     {
-                        "displayName": "数据过滤方式",
+                        "displayName": {
+                            "zh-CN": "数据过滤方式",
+                            "en-US": "Filter Type",
+                        },
                         "name": "filterType",
                         "type": "options",
                         "options": [
-                            {"name": "简单形式", "value": "simple"},
-                            {"name": "ES 表达式", "value": "es-expression"},
+                            {
+                                "name": {
+                                    "zh-CN": "简单",
+                                    "en-US": "Simple",
+                                },
+                                "value": "simple",
+                            },
+                            {
+                                "name": {
+                                    "zh-CN": "ES 表达式",
+                                    "en-US": "ES Expression",
+                                },
+                                "value": "es-expression",
+                            },
                         ],
                         "default": "simple",
                         "required": False,
                     },
                     {
-                        "displayName": "根据元数据的字段进行过滤",
+                        "displayName": {
+                            "zh-CN": "根据元数据字段进行过滤",
+                            "en-US": "Filter by Metadata Field",
+                        },
                         "name": "metadata_filter",
                         "type": "json",
                         "typeOptions": {
@@ -65,17 +95,20 @@ def register(api):
                         },
                         "default": "",
                         "required": False,
-                        "description": "根据元数据的字段进行过滤",
+                        "description": {
+                            "zh-CN": "根据元数据的字段进行过滤",
+                            "en-US": "Filter by metadata field",
+                        },
                         "displayOptions": {"show": {"filterType": ["simple"]}},
                     },
                     {
                         "name": "docs",
                         "type": "notice",
-                        "displayName": """使用 ES 搜索过滤表达式用于对文本进行精准过滤。\n示例：
+                        "displayName": """For Example：
         ```json
         {
             "term": {
-                "metadata.filename.keyword": "文件名称"
+                "metadata.filename.keyword": "Filename"
             }
         }
         ```
@@ -83,14 +116,20 @@ def register(api):
                         "displayOptions": {"show": {"filterType": ["es-expression"]}},
                     },
                     {
-                        "displayName": "过滤表达式",
+                        "displayName": {
+                            "zh-CN": "过滤表达式",
+                            "en-US": "Filter Expression",
+                        },
                         "name": "expr",
                         "type": "json",
                         "required": False,
                         "displayOptions": {"show": {"filterType": ["es-expression"]}},
                     },
                     {
-                        "displayName": "是否按照创建时间进行排序",
+                        "displayName": {
+                            "zh-CN": "是否按照创建时间进行排序",
+                            "en-US": "Sort by Created At",
+                        },
                         "name": "orderByCreatedAt",
                         "type": "boolean",
                         "required": False,
@@ -100,7 +139,10 @@ def register(api):
                 "x-monkey-tool-output": [
                     {
                         "name": "hits",
-                        "displayName": "相似性集合",
+                        "displayName": {
+                            "zh-CN": "段落列表",
+                            "en-US": "Paragraph List",
+                        },
                         "type": "json",
                         "typeOptions": {
                             "multipleValues": True,
@@ -108,19 +150,28 @@ def register(api):
                         "properties": [
                             {
                                 "name": "metadata",
-                                "displayName": "元数据",
+                                "displayName": {
+                                    "zh-CN": "元数据",
+                                    "en-US": "Metadata",
+                                },
                                 "type": "json",
                             },
                             {
                                 "name": "page_content",
-                                "displayName": "文本内容",
+                                "displayName": {
+                                    "zh-CN": "文本内容",
+                                    "en-US": "Text Content",
+                                },
                                 "type": "string",
                             },
                         ],
                     },
                     {
                         "name": "text",
-                        "displayName": "所有搜索的结果组合的字符串",
+                        "displayName": {
+                            "zh-CN": "所有搜索的结果组合的字符串",
+                            "en-US": "All search results combined string",
+                        },
                         "type": "string",
                     },
                 ],
@@ -137,7 +188,7 @@ def register(api):
             vector_store = VectorStoreFactory(knowledgebase=knowledge_base)
             from_ = data.get("from", 0)
             size = data.get("size", 30)
-            metadata_filter = data.get("metadataFilter", None)
+            metadata_filter = data.get("metadata_filter", None)
             sort_by_created_at = data.get("sortByCreatedAt", False)
             documents = vector_store.search_by_full_text(
                 query,
@@ -160,12 +211,21 @@ def register(api):
             {
                 "x-monkey-tool-name": "search_vector",
                 "x-monkey-tool-categories": ["query"],
-                "x-monkey-tool-display-name": "文本向量搜索",
-                "x-monkey-tool-description": "根据提供的文本对进行相似性搜索",
+                "x-monkey-tool-display-name": {
+                    "zh-CN": "向量搜索",
+                    "en-US": "Vector Search",
+                },
+                "x-monkey-tool-description": {
+                    "zh-CN": "根据提供的文本对进行相似性搜索",
+                    "en-US": "Search for the text chunk most similar to its vector representation",
+                },
                 "x-monkey-tool-icon": "emoji:💿:#e58c3a",
                 "x-monkey-tool-input": [
                     {
-                        "displayName": "文本数据库",
+                        "displayName": {
+                            "zh-CN": "文本数据库",
+                            "en-US": "Knowledge Base",
+                        },
                         "name": "knowledge_base_id",
                         "type": "string",
                         "typeOptions": {"assetType": "knowledge-base"},
@@ -173,7 +233,10 @@ def register(api):
                         "required": True,
                     },
                     {
-                        "displayName": "关键词",
+                        "displayName": {
+                            "zh-CN": "关键词",
+                            "en-US": "Query",
+                        },
                         "name": "query",
                         "type": "string",
                         "default": "",
@@ -187,7 +250,10 @@ def register(api):
                         "required": False,
                     },
                     {
-                        "displayName": "根据元数据字段进行过滤",
+                        "displayName": {
+                            "zh-CN": "根据元数据字段进行过滤",
+                            "en-US": "Filter by Metadata Field",
+                        },
                         "name": "metadata_filter",
                         "type": "json",
                         "typeOptions": {
@@ -196,13 +262,19 @@ def register(api):
                         },
                         "default": "",
                         "required": False,
-                        "description": "根据元数据的字段进行过滤",
+                        "description": {
+                            "zh-CN": "根据元数据的字段进行过滤",
+                            "en-US": "Filter by metadata field",
+                        },
                     },
                 ],
                 "x-monkey-tool-output": [
                     {
                         "name": "hits",
-                        "displayName": "段落列表",
+                        "displayName": {
+                            "zh-CN": "段落列表",
+                            "en-US": "Paragraph List",
+                        },
                         "type": "json",
                         "typeOptions": {
                             "multipleValues": True,
@@ -210,19 +282,28 @@ def register(api):
                         "properties": [
                             {
                                 "name": "metadata",
-                                "displayName": "元数据",
+                                "displayName": {
+                                    "zh-CN": "元数据",
+                                    "en-US": "Metadata",
+                                },
                                 "type": "json",
                             },
                             {
                                 "name": "page_content",
-                                "displayName": "文本内容",
+                                "displayName": {
+                                    "zh-CN": "文本内容",
+                                    "en-US": "Text Content",
+                                },
                                 "type": "string",
                             },
                         ],
                     },
                     {
                         "name": "text",
-                        "displayName": "所有搜索的结果组合的字符串",
+                        "displayName": {
+                            "zh-CN": "所有搜索的结果组合的字符串",
+                            "en-US": "All search results combined string",
+                        },
                         "type": "string",
                     },
                 ],

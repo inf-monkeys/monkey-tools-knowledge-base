@@ -267,3 +267,6 @@ class ElasticsearchVectorStore(BaseVectorStore):
 
     def text_exists(self, id: str) -> bool:
         return self._client.exists(index=self._collection_name, id=id)
+
+    def get_metadata_key_unique_values(self, key: str) -> list[str]:
+        return []

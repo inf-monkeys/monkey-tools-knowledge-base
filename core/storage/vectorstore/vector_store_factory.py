@@ -190,3 +190,6 @@ class VectorStoreFactory:
                 return method
 
         raise AttributeError(f"'vector_processor' object has no attribute '{name}'")
+
+    def get_metadata_key_unique_values(self, key: str) -> list[str]:
+        return self._vector_processor.get_metadata_key_unique_values(key)
