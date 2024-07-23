@@ -30,6 +30,14 @@ def register(api):
                 "x-monkey-tool-input": [
                     {
                         "displayName": {
+                            "zh-CN": "当前只支持对英文数据进行全文检索，对于中文数据，请使用向量检索。",
+                            "en-US": "Currently only English data is supported for full-text search. For Chinese data, please use vector search.",
+                        },
+                        "name": "notice",
+                        "type": "notice",
+                    },
+                    {
+                        "displayName": {
                             "zh-CN": "文本数据库",
                             "en-US": "Knowledge Base",
                         },

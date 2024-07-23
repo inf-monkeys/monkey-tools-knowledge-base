@@ -106,8 +106,11 @@ def register(api):
                     {
                         "displayName": {"zh-CN": "文档列表", "en-US": "Document List"},
                         "name": "array",
-                        "type": "collection",
+                        "type": "string",
                         "required": True,
+                        "typeOptions": {
+                            "multipleValues": True,
+                        }
                     },
                     {
                         "displayName": {"zh-CN": "Top-K", "en-US": "Top-K"},
