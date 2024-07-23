@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Resource
 from core.utils import ROOT_FOLDER
-from core.utils.embedding import SUPPORTED_EMBEDDING_MODELS
+from core.utils.embedding import SUPPORTED_EMBEDDING_MODELS, generate_embedding_of_model
 from core.utils.oss.aliyunoss import AliyunOSSClient
 from core.utils.oss.tos import TOSClient
 import os
@@ -233,7 +233,7 @@ def register(api):
                 ],
                 "x-monkey-tool-output": [
                     {
-                        "name": "vectorArray",
+                        "name": "vector",
                         "displayName": {
                             "zh-CN": "向量",
                             "en-US": "Vector",
@@ -249,29 +249,11 @@ def register(api):
         def post(self):
             """Reranker"""
             input_data = request.json
-            query = input_data.get("query")
-            array = input_data.get("array")
-            top_k = input_data.get("topK")
-
-            model_or_path = (
-                os.path.join(ROOT_FOLDER, "models/bge-reranker-large")
-                if os.path.exists(
-                    os.path.join(ROOT_FOLDER, "models/bge-reranker-large")
-                )
-                else "BAAI/bge-reranker-large"
-            )
-            reranker = FlagReranker(model_or_path, use_fp16=True)
-            args = [[query, item] for item in array]
-
-            scores = reranker.compute_score(args)
-            sorted_array = [
-                item for score, item in sorted(zip(scores, array), reverse=True)
-            ]
-
-            if top_k != None:
-                sorted_array = sorted_array[:top_k]
+            text = input_data.get("text")
+            embeddingModel = input_data.get("embeddingModel")
+            vector = generate_embedding_of_model(
+                embeddingModel, [text]
+            )[0]
             return {
-                "scores": scores,
-                "sortedArray": sorted_array,
-                "str": "\n".join(sorted_array),
+                "vector": vector
             }
