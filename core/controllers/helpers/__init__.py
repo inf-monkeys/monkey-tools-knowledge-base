@@ -6,6 +6,14 @@ from core.utils.oss.aliyunoss import AliyunOSSClient
 from core.utils.oss.tos import TOSClient
 import os
 from FlagEmbedding import FlagReranker
+import json
+import numpy as np
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 def register(api):
@@ -254,6 +262,7 @@ def register(api):
             vector = generate_embedding_of_model(
                 embeddingModel, [text]
             )[0]
+            json_dump = json.dumps(vector, cls=NumpyEncoder)
             return {
-                "vector": vector
+                "vector": json.loads(json_dump),
             }
