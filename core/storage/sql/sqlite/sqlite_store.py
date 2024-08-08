@@ -5,6 +5,9 @@ from sqlite3 import Connection
 from core.config import SQLITE_FILE_FOLDER
 import os
 import pandas
+import requests
+import chardet
+from io import BytesIO
 
 
 class SqliteSqlStore(BaseSQLStore):
@@ -62,7 +65,11 @@ WHERE type='table';
             raise ValueError("csvfile must be specified.")
 
         if csvfile.endswith(".csv"):
-            df = pandas.read_csv(csvfile, sep=sep)
+            response = requests.get(csvfile)
+            raw_data = response.content
+            result = chardet.detect(raw_data)
+            encoding = result['encoding']
+            df = pandas.read_csv(BytesIO(raw_data), sep=sep, encoding=encoding)
         elif csvfile.endswith(".xlsx") or csvfile.endswith(".xls"):
             df = pandas.read_excel(csvfile)
 

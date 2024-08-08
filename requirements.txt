@@ -23,6 +23,8 @@ flask-migrate~=4.0.5
 loguru
 pymupdf
 redis-py-cluster
+requests
 pgvector
 pandas
 openpyxl
+chardet
