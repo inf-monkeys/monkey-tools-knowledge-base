@@ -35,6 +35,7 @@ class KnowledgeBaseEntity(db.Model):
 
     @staticmethod
     def get_by_id(id: str):
+        db.handle_invalid_transaction()
         knowledge_base = KnowledgeBaseEntity.query.filter_by(id=id).first()
         if not knowledge_base:
             raise ValueError(f"Knowledge base with id {id} not found")
@@ -42,6 +43,7 @@ class KnowledgeBaseEntity(db.Model):
 
     @staticmethod
     def delete_by_id(id: str):
+        db.handle_invalid_transaction()
         knowledge_base = KnowledgeBaseEntity.query.filter_by(id=id).first()
         if not knowledge_base:
             return False

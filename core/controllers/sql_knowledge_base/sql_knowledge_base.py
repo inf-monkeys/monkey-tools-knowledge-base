@@ -68,7 +68,10 @@ def register(api):
                 database=database,
             )
             db.session.add(sql_knowledge_base_entity)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             if type == "builtIn":
                 sql_store = SqlStoreFactory(knowledgebase=sql_knowledge_base_entity)

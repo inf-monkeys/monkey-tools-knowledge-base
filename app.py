@@ -50,6 +50,13 @@ def before_request():
     request.team_id = request.headers.get("x-monkeys-teamid")
     request.workflow_id = request.headers.get("x-monkeys-workflowid")
     request.workflow_instance_id = request.headers.get("x-monkeys-workflow-instanceid")
+    db.handle_invalid_transaction()
+
+
+@app.teardown_request
+def teardown_request(exception):
+    if exception:
+        db.db.session.rollback()
 
 
 @api.errorhandler(Exception)

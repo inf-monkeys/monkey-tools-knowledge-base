@@ -73,6 +73,7 @@ class DocumentEntity(db.Model):
     def update_status_by_id(
         task_id: str, index_status: TaskStatus, failed_message: str = None
     ):
+        db.handle_invalid_transaction()
         document = DocumentEntity.query.filter_by(id=task_id).first()
         document.index_status = index_status.value
         document.failed_message = failed_message
@@ -81,6 +82,7 @@ class DocumentEntity(db.Model):
 
     @staticmethod
     def delete_by_id(id: str):
+        db.handle_invalid_transaction()
         document = DocumentEntity.query.filter_by(id=id).first()
         db.session.delete(document)
         db.session.commit()
