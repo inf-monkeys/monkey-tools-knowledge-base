@@ -104,24 +104,20 @@ class PGVectorStore(BaseVectorStore):
         chunks = chunk_list(db_documents, self._client_config.batch_size)
         for chunk in chunks:
             data_ids = [d.id for d in chunk]
-            existing_records = self._session.query(self._table).filter(
-                self._table.id.in_(data_ids)
-            ).all()
-            existing_ids = {record.id for record in existing_records}
-
-            updates = []
-            creates = []
-            for d in chunk:
-                if d.id in existing_ids:
-                    updates.append(d)
-                else:
-                    creates.append(d)
+            existing_ids = {
+                id_[0]
+                for id_ in self._session.query(self._table.id).filter(
+                    self._table.id.in_(data_ids)
+                )
+            }
+            updates = [d for d in chunk if d.id in existing_ids]
+            creates = [d for d in chunk if d.id not in existing_ids]
 
             for update in updates:
-                existing_record = next(r for r in existing_records if r.id == update.id)
-                existing_record.page_content = update.page_content
-                existing_record.meta_data = update.meta_data
-                existing_record.embeddings = update.embeddings
+                obj = self._session.query(self._table).get(update.id)
+                obj.page_content = update.page_content
+                obj.meta_data = update.meta_data
+                obj.embeddings = update.embeddings
 
             self._session.bulk_save_objects(creates)
 
