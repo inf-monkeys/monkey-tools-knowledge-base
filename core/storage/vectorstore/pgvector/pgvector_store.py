@@ -65,27 +65,32 @@ class PGVectorStore(BaseVectorStore):
 
     def create_collection(self, **kwargs) -> BaseVectorStore:
         dimension = kwargs.get("dimension")
-        with self._engine.connect() as conn:
-            conn.execute(
-                f"""
-                CREATE TABLE {self._collection_name} (
-                    id varchar(64) PRIMARY KEY,
-                    meta_data jsonb,
-                    page_content text,
-                    embeddings vector({dimension}),
-                    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-                    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP(0)
+        try:
+            with self._engine.begin() as conn:
+                conn.execute(
+                    f"""
+                    CREATE TABLE {self._collection_name} (
+                        id varchar(64) PRIMARY KEY,
+                        meta_data jsonb,
+                        page_content text,
+                        embeddings vector({dimension}),
+                        created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+                        updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP(0)
+                    )
+                    """
                 )
-                """
-            )
-            # Add full text index on page_content
-            conn.execute(
-                f"""
-                CREATE INDEX idx_{self._collection_name}_page_content
-                ON {self._collection_name}
-                USING gin(to_tsvector('english', page_content))
-                """
-            )
+                # Add full text index on page_content
+                conn.execute(
+                    f"""
+                    CREATE INDEX idx_{self._collection_name}_page_content
+                    ON {self._collection_name}
+                    USING gin(to_tsvector('english', page_content))
+                    """
+                )
+            return self
+        except Exception as e:
+            # 如果发生错误，事务会自动回滚
+            raise e
 
     def add_texts(
         self,
@@ -104,36 +109,52 @@ class PGVectorStore(BaseVectorStore):
         chunks = chunk_list(db_documents, self._client_config.batch_size)
         for chunk in chunks:
             data_ids = [d.id for d in chunk]
-            existing_ids = {
-                id_[0]
-                for id_ in self._session.query(self._table.id).filter(
-                    self._table.id.in_(data_ids)
-                )
-            }
-            updates = [d for d in chunk if d.id in existing_ids]
-            creates = [d for d in chunk if d.id not in existing_ids]
+            existing_records = self._session.query(self._table).filter(
+                self._table.id.in_(data_ids)
+            ).all()
+            existing_ids = {record.id for record in existing_records}
+
+            updates = []
+            creates = []
+            for d in chunk:
+                if d.id in existing_ids:
+                    updates.append(d)
+                else:
+                    creates.append(d)
 
             for update in updates:
-                obj = self._session.query(self._table).get(update.id)
-                obj.page_content = update.page_content
-                obj.meta_data = update.meta_data
-                obj.embeddings = update.embeddings
+                existing_record = next(r for r in existing_records if r.id == update.id)
+                existing_record.page_content = update.page_content
+                existing_record.meta_data = update.meta_data
+                existing_record.embeddings = update.embeddings
 
             self._session.bulk_save_objects(creates)
 
-        self._session.commit()  # 提交会话以保存数据到数据库
+        try:
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
+            raise e
 
     def delete_by_ids(self, ids: list[str]) -> None:
-        self._session.query(self._table).filter(self._table.id.in_(ids)).delete(
-            synchronize_session=False
-        )
-        self._session.commit()
+        try:
+            self._session.query(self._table).filter(self._table.id.in_(ids)).delete(
+                synchronize_session=False
+            )
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
+            raise e
 
     def delete_by_metadata_field(self, key: str, value: str) -> None:
-        q = self._session.query(self._table)
-        q = q.filter(text(f"meta_data->>'{key}' = :value")).params(value=value)
-        q.delete(synchronize_session=False)
-        self._session.commit()
+        try:
+            q = self._session.query(self._table)
+            q = q.filter(text(f"meta_data->>'{key}' = :value")).params(value=value)
+            q.delete(synchronize_session=False)
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
+            raise e
 
     def search_by_full_text(self, query: str, **kwargs) -> list[Document]:
         metadata_filter = kwargs.get("metadata_filter", None)
@@ -204,16 +225,32 @@ class PGVectorStore(BaseVectorStore):
         return super().text_exists(id)
 
     def update_by_id(self, id: str, document: Document) -> None:
-        record = self._session.query(self._table).get(id)
-        record.page_content = document.page_content
-        record.meta_data = document.metadata
-        self._session.commit()
+        try:
+            record = self._session.query(self._table).get(id)
+            if record:
+                record.page_content = document.page_content
+                record.meta_data = document.metadata
+                self._session.commit()
+            else:
+                raise ValueError(f"No record found with id: {id}")
+        except Exception as e:
+            self._session.rollback()
+            raise e
 
     def delete(self) -> None:
-        with self._engine.connect() as conn:
-            conn.execute(f"DROP TABLE {self._collection_name}")
+        try:
+            with self._engine.begin() as conn:
+                conn.execute(f"DROP TABLE IF EXISTS {self._collection_name}")
+        except Exception as e:
+            # 如果发生错误，事务会自动回滚
+            raise e
 
     def get_metadata_key_unique_values(self, key: str) -> list[str]:
-        sql = f"""SELECT DISTINCT meta_data->>'{key}' AS filename FROM "public"."{self._collection_name}";"""
-        result = self._engine.execute(sql)
-        return [row[0] for row in result]
+        try:
+            sql = f"""SELECT DISTINCT meta_data->>'{key}' AS filename FROM "public"."{self._collection_name}";"""
+            with self._engine.connect() as conn:
+                result = conn.execute(sql)
+                return [row[0] for row in result if row[0] is not None]
+        except Exception as e:
+            # 记录错误或进行其他错误处理
+            raise e
