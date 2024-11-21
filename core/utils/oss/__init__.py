@@ -2,7 +2,7 @@ import os
 from urllib.parse import unquote
 import requests
 from loguru import logger
-from core.config import DOWNLOAD_FOLDER
+from core.config import DOWNLOAD_FOLDER, internal_minio_endpoint
 
 
 def extract_filename(url):
@@ -11,12 +11,17 @@ def extract_filename(url):
     return unquote(filename)
 
 
-def download_file(file_url):
+def download_file(file_url: str):
     """
     下载文件进指定目录
     下载成功返回 文件地址
     下载失败返回 False
     """
+    
+    if not file_url.startswith("http") and not file_url.startswith("https"):
+        if internal_minio_endpoint:
+            file_url = f"{internal_minio_endpoint}{file_url}"
+
     try:
         response = requests.get(file_url, stream=True)
         response.raise_for_status()
