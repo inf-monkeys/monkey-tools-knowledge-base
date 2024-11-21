@@ -24,7 +24,7 @@ def register(api):
     class KnowledgeBaseDocuments(Resource):
         def get(self, knowledge_base_id):
             """List all documents in the knowledge base"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             KnowledgeBaseEntity.get_by_id(knowledge_base_id)
             documents = DocumentEntity.find_by_knowledge_base_id(knowledge_base_id)
             return jsonify({"list": [document.serialize() for document in documents]})
@@ -32,7 +32,7 @@ def register(api):
         def post(self, knowledge_base_id):
             user_id = request.user_id
             """Create a new document in the knowledge base"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             KnowledgeBaseEntity.get_by_id(knowledge_base_id)
 
             data = request.json
@@ -111,7 +111,7 @@ def register(api):
     class KnowledgeBaseDocumentDetail(Resource):
         def delete(self, knowledge_base_id, document_id):
             """Delete a document in the knowledge base"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             knowledge_base = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
 
             vector_store = VectorStoreFactory(knowledge_base)

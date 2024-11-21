@@ -22,7 +22,7 @@ def register(api):
         @knowledge_base_ns.doc("create_knowledge_base")
         def post(self):
             """Create a new Collection"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             data = request.json
             embedding_model = data.get("embeddingModel")
             dimension = get_dimension_by_embedding_model(embedding_model)
@@ -54,7 +54,7 @@ def register(api):
         @knowledge_base_ns.response(204, "Knowledge base deleted")
         def delete(self, knowledge_base_id):
             """Delete a knowledge base given its identifier"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             knowledge_base_entity = KnowledgeBaseEntity.get_by_id(knowledge_base_id)
             vector_store = VectorStoreFactory(knowledgebase=knowledge_base_entity)
             try:
@@ -73,5 +73,5 @@ def register(api):
         @knowledge_base_ns.doc("copy_knowledge_base")
         def post(self, knowledge_base_id):
             """Copy a knowledge base given its identifier"""
-            db.handle_invalid_transaction()
+            # db.handle_invalid_transaction()
             pass
